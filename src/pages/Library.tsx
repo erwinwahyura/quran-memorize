@@ -1,4 +1,5 @@
 import { InstallCard } from '../components/InstallCard';
+import { OfflineBadge } from '../components/OfflineButton';
 import { HeadphonesIcon, PauseIcon, PlayIcon, PlusIcon } from '../components/Icons';
 import { relativeDay, useT } from '../lib/i18n';
 import { currentItem, passageQueue, player, usePlayer } from '../lib/player';
@@ -77,6 +78,7 @@ export function Library() {
                         {p.lastPlayedAt ? t.lastPlayed(relativeDay(t, p.lastPlayedAt)) : t.neverPlayed}
                       </span>
                       {stale && <span className="tag warn">{t.needsReview}</span>}
+                      <OfflineBadge surah={p.surah} from={p.from} to={p.to} />
                     </div>
                   </button>
                   <button

@@ -3,9 +3,10 @@ import { BackIcon, EditIcon, EyeOffIcon, LanguageIcon, PauseIcon, PlayIcon, Tras
 import { OfflineButton } from '../components/OfflineButton';
 import { Reader } from '../components/Reader';
 import { relativeDay, useT } from '../lib/i18n';
+import { forgetOffline } from '../lib/offline';
 import { currentItem, passageQueue, player, usePlayer } from '../lib/player';
 import { back, navigate } from '../lib/router';
-import { deletePassage, passageLabel, updateSettings, usePassages, useSettings } from '../lib/store';
+import { deletePassage, getState, passageLabel, updateSettings, usePassages, useSettings } from '../lib/store';
 import { getSurah } from '../lib/surahs';
 
 export function PassagePage({ id }: { id: string }) {
@@ -92,6 +93,7 @@ export function PassagePage({ id }: { id: string }) {
             if (confirm(t.confirmDelete)) {
               if (isThis) player.stop();
               deletePassage(p.id);
+              void forgetOffline(p, getState().passages);
               navigate('/');
             }
           }}

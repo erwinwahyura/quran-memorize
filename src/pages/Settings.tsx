@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { clearAudioCache, storageEstimate } from '../lib/audioCache';
+import { clearAudioCache, countCached, storageEstimate } from '../lib/audioCache';
+import { markChanged, syncAllOffline } from '../lib/offline';
 import { UI_LANGS, useT } from '../lib/i18n';
 import { RECITERS } from '../lib/reciters';
-import { exportData, importData, updateSettings, useSettings, type UiLang } from '../lib/store';
+import { exportData, importData, updateSettings, usePassages, useSettings, type UiLang } from '../lib/store';
 import { CURATED_TRANSLATIONS, loadAllTranslations, translationInfo, type TranslationEdition } from '../lib/translations';
 
 const fmtBytes = (b: number) =>
@@ -17,10 +18,20 @@ export function Settings() {
   const [est, setEst] = useState<{ usage: number; quota: number } | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const passages = usePassages();
+  const [offlineN, setOfflineN] = useState<number | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
+  const refreshOffline = async () => {
+    let n = 0;
+    for (const p of passages) if ((await countCached(settings.reciter, p.surah, p.from, p.to)) === p.to - p.from + 1) n++;
+    setOfflineN(n);
+    setEst(await storageEstimate());
+  };
   useEffect(() => {
-    storageEstimate().then(setEst);
-  }, []);
+    void refreshOffline();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [passages, settings.reciter]);
 
   const options = useMemo(() => {
     const list = all ?? CURATED_TRANSLATIONS;
@@ -109,14 +120,6 @@ export function Settings() {
             <span>{t.days}</span>
           </div>
         </div>
-        <label className="toggle">
-          <input
-            type="checkbox"
-            checked={settings.autoDownload}
-            onChange={(e) => updateSettings({ autoDownload: e.target.checked })}
-          />
-          <span>{t.autoDownload}</span>
-        </label>
       </section>
 
       <section className="card">
@@ -164,14 +167,49 @@ export function Settings() {
       </section>
 
       <section className="card">
-        <h2>{t.storage}</h2>
+        <h2>{t.offlineTitle}</h2>
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={settings.saveOnAdd}
+            onChange={(e) => updateSettings({ saveOnAdd: e.target.checked })}
+          />
+          <span>{t.saveOnAdd}</span>
+        </label>
+        <p className="muted small">{t.saveOnAddHint}</p>
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={settings.autoDownload}
+            onChange={(e) => updateSettings({ autoDownload: e.target.checked })}
+          />
+          <span>{t.autoDownload}</span>
+        </label>
+        {passages.length > 0 && offlineN !== null && (
+          <p className="small">{t.offlineCount(offlineN, passages.length)}</p>
+        )}
+        <div className="row-actions">
+          <button
+            className="btn small"
+            disabled={syncing || offlineN === passages.length}
+            onClick={async () => {
+              setSyncing(true);
+              await syncAllOffline();
+              setSyncing(false);
+              void refreshOffline();
+            }}
+          >
+            {syncing ? <span className="spinner" /> : null} {t.downloadAll}
+          </button>
+        </div>
         {est && <p className="muted small">{t.storageUsed(fmtBytes(est.usage), fmtBytes(est.quota))}</p>}
         <button
           className="btn small danger"
           onClick={async () => {
             if (confirm(t.clearAudioConfirm)) {
               await clearAudioCache();
-              setEst(await storageEstimate());
+              markChanged();
+              void refreshOffline();
             }
           }}
         >

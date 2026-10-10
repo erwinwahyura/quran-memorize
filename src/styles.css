@@ -345,7 +345,13 @@ main {
 .warn {
   color: var(--warn);
 }
+.tag.ok {
+  color: var(--green);
+}
 .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 0.7rem;
   padding: 2px 8px;
   border-radius: 999px;

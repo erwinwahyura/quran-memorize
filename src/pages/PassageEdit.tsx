@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BackIcon } from '../components/Icons';
 import { SurahPicker } from '../components/SurahPicker';
 import { useT } from '../lib/i18n';
+import { afterPassageSaved } from '../lib/offline';
 import { back, navigate } from '../lib/router';
 import { addPassage, updatePassage, usePassages } from '../lib/store';
 import { getSurah } from '../lib/surahs';
@@ -30,6 +31,7 @@ export function PassageEdit({ id }: { id?: string }) {
       return;
     }
     const data = { surah: s.number, from: f, to: tt, note: note.trim() || undefined };
+    afterPassageSaved(data);
     if (existing) {
       updatePassage(existing.id, data);
       navigate(`/p/${existing.id}`);

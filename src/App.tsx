@@ -3,6 +3,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import { BookIcon, HeadphonesIcon, SettingsIcon } from './components/Icons';
 import { PlayerBar } from './components/PlayerBar';
 import { useT } from './lib/i18n';
+import { syncAllOffline } from './lib/offline';
 import { usePlayer } from './lib/player';
 import { navigate, useRoute } from './lib/router';
 import { useSettings } from './lib/store';
@@ -39,6 +40,18 @@ export function App() {
     document.documentElement.lang = uiLang;
   }, [uiLang]);
   useEffect(() => window.scrollTo(0, 0), [route]);
+
+  // Keep the whole hafalan downloaded: on start, when back online, and after
+  // switching reciter or translations.
+  const { saveOnAdd, reciter, translations } = useSettings();
+  const trKey = translations.join(',');
+  useEffect(() => {
+    if (!saveOnAdd) return;
+    void syncAllOffline();
+    const onOnline = () => void syncAllOffline();
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [saveOnAdd, reciter, trKey]);
 
   const tab = route.startsWith('/quran') ? 'quran' : route.startsWith('/settings') ? 'settings' : 'library';
   const hasPlayer = ps.queue.length > 0;
