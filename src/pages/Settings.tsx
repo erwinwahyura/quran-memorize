@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { clearAudioCache, countCached, storageEstimate } from '../lib/audioCache';
+import { clearAudioCache, countCached, requestPersistence, storageEstimate } from '../lib/audioCache';
 import { markChanged, syncAllOffline } from '../lib/offline';
 import { UI_LANGS, useT } from '../lib/i18n';
 import { RECITERS } from '../lib/reciters';
@@ -21,6 +21,15 @@ export function Settings() {
   const passages = usePassages();
   const [offlineN, setOfflineN] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [persisted, setPersisted] = useState<boolean | null>(null);
+  const [persistTried, setPersistTried] = useState(false);
+  useEffect(() => {
+    navigator.storage?.persisted?.().then(setPersisted, () => setPersisted(null));
+  }, []);
+  const isIosBrowser =
+    /iphone|ipad|ipod/i.test(navigator.userAgent) &&
+    !(navigator as Navigator & { standalone?: boolean }).standalone &&
+    !window.matchMedia('(display-mode: standalone)').matches;
 
   const refreshOffline = async () => {
     let n = 0;
@@ -202,6 +211,26 @@ export function Settings() {
             {syncing ? <span className="spinner" /> : null} {t.downloadAll}
           </button>
         </div>
+        {persisted !== null && (
+          <div className={`notice${persisted ? ' ok' : ' warn'}`}>
+            <p>{persisted ? '✓ ' + t.protectedYes : t.protectedNo}</p>
+            {!persisted && (
+              <>
+                <button
+                  className="btn small"
+                  onClick={async () => {
+                    setPersisted(await requestPersistence());
+                    setPersistTried(true);
+                  }}
+                >
+                  {t.protectBtn}
+                </button>
+                {persistTried && <p className="small">{t.protectHint}</p>}
+              </>
+            )}
+          </div>
+        )}
+        {isIosBrowser && <div className="notice warn"><p>{t.iosBrowserWarn}</p></div>}
         {est && <p className="muted small">{t.storageUsed(fmtBytes(est.usage), fmtBytes(est.quota))}</p>}
         <button
           className="btn small danger"

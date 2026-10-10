@@ -798,3 +798,25 @@ input[type='range'] {
   color: var(--accent);
   border: none;
 }
+
+.notice {
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin: 10px 0;
+  font-size: 0.85rem;
+  border: 1px solid var(--line);
+}
+.notice p {
+  margin: 0 0 6px;
+}
+.notice p:last-child {
+  margin-bottom: 0;
+}
+.notice.ok {
+  border-color: color-mix(in srgb, var(--green) 45%, transparent);
+  background: color-mix(in srgb, var(--green) 10%, transparent);
+}
+.notice.warn {
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+}
