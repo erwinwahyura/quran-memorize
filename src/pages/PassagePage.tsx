@@ -79,7 +79,7 @@ export function PassagePage({ id }: { id: string }) {
         to={p.to}
         activeAyah={isThis ? cur?.ayah : null}
         hideText={hide}
-        onAyahClick={(a) => start(a)}
+        onAyahClick={(a) => (isThis && ps.sourceKey === `p:${p.id}` ? player.jump(a - p.from) : start(a))}
       />
 
       <div className="footer-actions">

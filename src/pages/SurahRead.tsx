@@ -28,7 +28,7 @@ export function SurahRead({ surah }: { surah: number }) {
   };
 
   const onAyah = (a: number) => {
-    if (!selecting) return start(a);
+    if (!selecting) return isThis ? player.jump(a - 1) : start(a);
     if (anchor === null) {
       setAnchor(a);
       setSel([a, a]);

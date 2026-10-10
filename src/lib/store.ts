@@ -87,6 +87,7 @@ const subscribe = (l: () => void) => {
   listeners.add(l);
   return () => listeners.delete(l);
 };
+export const subscribeStore = subscribe;
 
 // Keep tabs in sync.
 window.addEventListener('storage', (e) => {
