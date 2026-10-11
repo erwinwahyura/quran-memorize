@@ -48,7 +48,9 @@ export function Reader({ surah, from, to, activeAyah, onAyahClick, hideText, sel
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [surah, from, to, trKey, attempt]);
 
-  useEffect(() => setRevealed(new Set()), [hideText, surah, from, to]);
+  useEffect(() => {
+    setRevealed(new Set());
+  }, [hideText, surah, from, to]);
 
   useEffect(() => {
     if (activeAyah == null) return;

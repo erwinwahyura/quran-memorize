@@ -40,7 +40,11 @@ export function App() {
   useEffect(() => {
     document.documentElement.lang = uiLang;
   }, [uiLang]);
-  useEffect(() => window.scrollTo(0, 0), [route]);
+  // Braces matter: newer browsers return a Promise from scrollTo(), and React
+  // would treat a returned value as this effect's cleanup function.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [route]);
 
   // Keep the whole hafalan downloaded: on start, when back online, and after
   // switching reciter or translations.
