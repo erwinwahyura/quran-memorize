@@ -54,6 +54,13 @@ const DEFAULT_SETTINGS: Settings = {
 
 const LS_KEY = 'qm-state-v1';
 
+// Guards against corrupted storage or hand-edited backups crashing the UI.
+function isValidPassage(p: Partial<Passage> | null): p is Passage {
+  if (!p || typeof p.surah !== 'number' || typeof p.from !== 'number' || typeof p.to !== 'number') return false;
+  const s = getSurah(p.surah);
+  return !!s && p.from >= 1 && p.from <= p.to && p.to <= s.ayahs;
+}
+
 function load(): State {
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -61,7 +68,7 @@ function load(): State {
       const parsed = JSON.parse(raw) as Partial<State>;
       return {
         settings: { ...DEFAULT_SETTINGS, ...(parsed.settings ?? {}) },
-        passages: Array.isArray(parsed.passages) ? parsed.passages : [],
+        passages: Array.isArray(parsed.passages) ? parsed.passages.filter(isValidPassage) : [],
       };
     }
   } catch {
@@ -149,9 +156,7 @@ export function exportData(): string {
 export function importData(json: string): number {
   const data = JSON.parse(json) as Partial<State>;
   if (!Array.isArray(data.passages)) throw new Error('Invalid backup file');
-  const valid = data.passages.filter(
-    (p) => p && typeof p.surah === 'number' && typeof p.from === 'number' && typeof p.to === 'number',
-  );
+  const valid = data.passages.filter(isValidPassage);
   const existing = new Set(state.passages.map((p) => `${p.surah}:${p.from}-${p.to}`));
   const added = valid
     .filter((p) => !existing.has(`${p.surah}:${p.from}-${p.to}`))

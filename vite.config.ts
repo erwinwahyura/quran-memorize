@@ -1,8 +1,24 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { execSync } from 'node:child_process';
+
+// Shown in Settings so it's easy to confirm which build is deployed.
+function appVersion(): string {
+  const env = process.env.WORKERS_CI_COMMIT_SHA || process.env.CF_PAGES_COMMIT_SHA;
+  let sha = env?.slice(0, 7);
+  if (!sha) {
+    try {
+      sha = execSync('git rev-parse --short HEAD').toString().trim();
+    } catch {
+      sha = 'unknown';
+    }
+  }
+  return `${sha} (${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC)`;
+}
 
 export default defineConfig({
+  define: { __APP_VERSION__: JSON.stringify(appVersion()) },
   plugins: [
     react(),
     VitePWA({
