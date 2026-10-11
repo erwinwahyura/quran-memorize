@@ -16,6 +16,7 @@ export interface Settings {
   speed: number;
   gap: number; // seconds of silence after each ayah; -1 = same length as the ayah
   autoDownload: boolean; // keep audio offline after it's played once
+  saveOnAdd: boolean; // download a passage for offline as soon as it's added
 }
 
 export interface Passage {
@@ -48,6 +49,7 @@ const DEFAULT_SETTINGS: Settings = {
   speed: 1,
   gap: 0,
   autoDownload: true,
+  saveOnAdd: true,
 };
 
 const LS_KEY = 'qm-state-v1';
@@ -85,6 +87,7 @@ const subscribe = (l: () => void) => {
   listeners.add(l);
   return () => listeners.delete(l);
 };
+export const subscribeStore = subscribe;
 
 // Keep tabs in sync.
 window.addEventListener('storage', (e) => {

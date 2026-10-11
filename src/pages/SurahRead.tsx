@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BackIcon, LanguageIcon, PauseIcon, PlayIcon, PlusIcon, XIcon } from '../components/Icons';
 import { Reader } from '../components/Reader';
 import { useT } from '../lib/i18n';
+import { afterPassageSaved } from '../lib/offline';
 import { currentItem, player, usePlayer, type QueueItem } from '../lib/player';
 import { back, navigate } from '../lib/router';
 import { addPassage, passageLabel, updateSettings, useSettings } from '../lib/store';
@@ -27,7 +28,7 @@ export function SurahRead({ surah }: { surah: number }) {
   };
 
   const onAyah = (a: number) => {
-    if (!selecting) return start(a);
+    if (!selecting) return isThis ? player.jump(a - 1) : start(a);
     if (anchor === null) {
       setAnchor(a);
       setSel([a, a]);
@@ -93,6 +94,7 @@ export function SurahRead({ surah }: { surah: number }) {
             className="btn primary"
             onClick={() => {
               const p = addPassage({ surah, from: sel[0], to: sel[1] });
+              afterPassageSaved(p);
               setSelecting(false);
               setSel(null);
               navigate(`/p/${p.id}`);

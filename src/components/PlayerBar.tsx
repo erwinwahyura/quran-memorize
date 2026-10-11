@@ -117,7 +117,11 @@ export function PlayerBar() {
             )}
           </span>
           <span className="player-sub">
-            {s.error ? '⚠ ' + (s.error === 'audio' ? t.loadError : s.error) : s.inGap ? '…' : s.title}
+            {s.error
+              ? '⚠ ' + (s.error === 'audio' ? t.loadError : s.error === 'offline' ? t.offlineError : s.error)
+              : s.inGap
+                ? '…'
+                : s.title}
           </span>
         </button>
         <div className="player-controls">

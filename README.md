@@ -17,8 +17,11 @@ them like a playlist, with your headset, whenever they start to fade.
   - default reciter **Syaikh Yasser Al-Dossari**, plus 11 others
 - **Test me** mode: ayat are blurred; tap to peek.
 - **Full Quran** tab: read or play any surah, and select a range to add to your hafalan.
-- **Offline**: the app shell is precached; text is stored in IndexedDB; audio is stored per ayah in
-  Cache Storage, either with "Save offline" or automatically after you've listened once.
+- **Offline**: adding a passage automatically downloads its audio and text, so it works without internet
+  (toggle in Settings → Offline). Missing downloads are resumed when the app opens or comes back online,
+  and after switching reciter. There's also "Download all hafalan", a per-passage "Save offline" button,
+  and an *Offline* badge on each card. Deleting a passage frees its audio. The app shell is precached,
+  text lives in IndexedDB and audio in Cache Storage.
 - **Device-only storage**, with JSON export/import for backups or moving to a new phone.
 - UI in **English** and **Bahasa Indonesia**.
 
