@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { BookIcon, HeadphonesIcon, SettingsIcon } from './components/Icons';
 import { PlayerBar } from './components/PlayerBar';
 import { useT } from './lib/i18n';
@@ -67,7 +68,9 @@ export function App() {
         </div>
       )}
       <main>
-        <Page route={route} />
+        <ErrorBoundary key={route}>
+          <Page route={route} />
+        </ErrorBoundary>
       </main>
       <div className="bottom">
         <PlayerBar />
