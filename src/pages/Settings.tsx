@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { APP_VERSION } from '../components/ErrorBoundary';
 import { clearAudioCache, countCached, requestPersistence, storageEstimate } from '../lib/audioCache';
 import { markChanged, syncAllOffline } from '../lib/offline';
 import { UI_LANGS, useT } from '../lib/i18n';
@@ -282,6 +283,7 @@ export function Settings() {
       )}
 
       <p className="muted small center">{t.about}</p>
+      <p className="muted small center">Version {APP_VERSION}</p>
     </div>
   );
 }
