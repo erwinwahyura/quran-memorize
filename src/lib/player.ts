@@ -297,6 +297,7 @@ function onTime() {
     curK = k;
     skipFinish = false;
     if (ayahChanged) queueMicrotask(updateMediaSession);
+    updatePosition();
   }
   const x = seg.units[k];
   const inGap = t >= x.audioEnd;
@@ -347,8 +348,14 @@ audio.addEventListener('ended', () => {
 });
 audio.addEventListener('pause', () => {
   if (!audio.ended) setState({ playing: false });
+  updatePosition();
 });
-audio.addEventListener('play', () => setState({ playing: true }));
+audio.addEventListener('play', () => {
+  setState({ playing: true });
+  updatePosition();
+});
+audio.addEventListener('ratechange', () => updatePosition());
+audio.addEventListener('seeked', () => updatePosition());
 audio.addEventListener('error', () => {
   if (!audio.getAttribute('src')) return;
   setState({ playing: false, loading: false, error: 'audio' });
@@ -405,6 +412,29 @@ function updateMediaSession() {
   }
 }
 
+/**
+ * Lock-screen progress bar shows the current ayah (plus its gap), matching the
+ * "Surah · ayah" title, rather than the whole stitched segment.
+ */
+function updatePosition() {
+  if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
+  const x = seg && curK >= 0 ? seg.units[curK] : null;
+  try {
+    if (!x) {
+      navigator.mediaSession.setPositionState();
+      return;
+    }
+    const duration = Math.max(0.1, x.end - x.start);
+    navigator.mediaSession.setPositionState({
+      duration,
+      position: Math.min(duration, Math.max(0, audio.currentTime - x.start)),
+      playbackRate: audio.playbackRate || 1,
+    });
+  } catch {
+    /* invalid state while loading */
+  }
+}
+
 if ('mediaSession' in navigator) {
   const set = (a: MediaSessionAction, h: MediaSessionActionHandler) => {
     try {
@@ -418,6 +448,16 @@ if ('mediaSession' in navigator) {
   set('stop', () => player.pause());
   set('nexttrack', () => player.next());
   set('previoustrack', () => player.prev());
+  // iOS shows ±10s buttons; make them step between ayat instead.
+  set('seekbackward', () => player.prev());
+  set('seekforward', () => player.next());
+  // Dragging the lock-screen bar seeks within the current ayah.
+  set('seekto', (d) => {
+    const x = seg && curK >= 0 ? seg.units[curK] : null;
+    if (!x || d.seekTime == null) return;
+    audio.currentTime = x.start + Math.min(d.seekTime, x.end - x.start - 0.05);
+    updatePosition();
+  });
 }
 
 // ---- public API ----
