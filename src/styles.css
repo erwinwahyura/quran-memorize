@@ -833,3 +833,106 @@ input[type='range'] {
   margin: 12px 0 16px;
   text-align: start;
 }
+
+/* guide */
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.help-btn {
+  border: 1px solid var(--line);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--accent);
+}
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  text-decoration: underline;
+  padding: 4px;
+}
+.guide-list {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+}
+.guide-item {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.guide-item[open] {
+  border-color: var(--accent);
+}
+.guide-item summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.guide-item summary::-webkit-details-marker {
+  display: none;
+}
+.guide-item summary::after {
+  content: '⌄';
+  margin-left: auto;
+  color: var(--muted);
+  transition: transform 0.2s;
+}
+.guide-item[open] summary::after {
+  transform: rotate(180deg);
+}
+.guide-icon {
+  font-size: 1.3rem;
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.guide-body {
+  padding: 0 16px 14px 56px;
+  line-height: 1.6;
+}
+.guide-body p {
+  margin: 0 0 8px;
+}
+.guide-body ol {
+  margin: 0;
+  padding-left: 18px;
+}
+.guide-body li + li {
+  margin-top: 6px;
+}
+.guide-tip {
+  margin-top: 10px !important;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--active);
+  font-size: 0.9rem;
+}
+.guide-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: start;
+  cursor: pointer;
+}
+.guide-card > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.center-row {
+  justify-content: center;
+}
+@media (max-width: 420px) {
+  .guide-body {
+    padding-left: 16px;
+  }
+}

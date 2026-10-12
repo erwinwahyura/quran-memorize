@@ -26,9 +26,14 @@ export function Library() {
           <h1>{t.appName}</h1>
           <p className="muted">{t.tagline}</p>
         </div>
-        <button className="btn primary" onClick={() => navigate('/add')}>
-          <PlusIcon size={18} /> {t.add}
-        </button>
+        <div className="head-actions">
+          <button className="icon-btn help-btn" onClick={() => navigate('/guide')} aria-label={t.guideTitle} title={t.guideTitle}>
+            ?
+          </button>
+          <button className="btn primary" onClick={() => navigate('/add')}>
+            <PlusIcon size={18} /> {t.add}
+          </button>
+        </div>
       </header>
 
       <InstallCard />
@@ -43,6 +48,11 @@ export function Library() {
           <button className="btn primary" onClick={() => navigate('/add')}>
             <PlusIcon size={18} /> {t.addPassage}
           </button>
+          <p>
+            <button className="link-btn" onClick={() => navigate('/guide')}>
+              {t.guideLink}
+            </button>
+          </p>
         </div>
       ) : (
         <>

@@ -4,6 +4,7 @@ import { clearAudioCache, countCached, requestPersistence, storageEstimate } fro
 import { markChanged, syncAllOffline } from '../lib/offline';
 import { UI_LANGS, useT } from '../lib/i18n';
 import { RECITERS } from '../lib/reciters';
+import { navigate } from '../lib/router';
 import { exportData, importData, updateSettings, usePassages, useSettings, type UiLang } from '../lib/store';
 import { CURATED_TRANSLATIONS, loadAllTranslations, translationInfo, type TranslationEdition } from '../lib/translations';
 
@@ -73,6 +74,16 @@ export function Settings() {
       <header className="page-head">
         <h1>{t.settingsTitle}</h1>
       </header>
+
+      <button className="card guide-card" onClick={() => navigate('/guide')}>
+        <span className="guide-icon" aria-hidden>
+          📖
+        </span>
+        <span>
+          <strong>{t.guideTitle}</strong>
+          <span className="muted small">{t.guideCard}</span>
+        </span>
+      </button>
 
       <section className="card">
         <div className="field">
