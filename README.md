@@ -24,6 +24,7 @@ them like a playlist, with your headset, whenever they start to fade.
   text lives in IndexedDB and audio in Cache Storage.
 - **Device-only storage**, with JSON export/import for backups or moving to a new phone.
 - UI in **English** and **Bahasa Indonesia**.
+- Built-in **How to use** guide (EN/ID), opened from the **?** button on the home screen or from Settings. Edit its content in `src/lib/guide.ts`.
 
 Data sources: text and translations from [api.alquran.cloud](https://alquran.cloud/api); audio from
 [everyayah.com](https://everyayah.com), proxied through `/audio/*` by a tiny Cloudflare Worker

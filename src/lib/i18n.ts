@@ -101,6 +101,11 @@ const en = {
   about: 'Text: api.alquran.cloud (Uthmani). Audio: everyayah.com.',
   invalidRange: 'Check the ayah range.',
   nowPlaying: 'Now playing',
+  guideTitle: 'How to use',
+  guideIntro: 'Tap a topic to open it. New here? Start with “Add a passage”.',
+  guideStart: 'Add my first passage',
+  guideLink: 'How does it work?',
+  guideCard: 'Step-by-step guide: installing, adding ayat, listening, offline and backup.',
   close: 'Close',
 };
 
@@ -206,6 +211,11 @@ const id: Dict = {
   about: 'Teks: api.alquran.cloud (Utsmani). Audio: everyayah.com.',
   invalidRange: 'Periksa rentang ayat.',
   nowPlaying: 'Sedang diputar',
+  guideTitle: 'Cara pakai',
+  guideIntro: 'Ketuk topik untuk membukanya. Baru pertama? Mulai dari “Menambah hafalan”.',
+  guideStart: 'Tambah hafalan pertamaku',
+  guideLink: 'Bagaimana cara kerjanya?',
+  guideCard: 'Panduan langkah demi langkah: pasang aplikasi, tambah ayat, mendengarkan, offline, dan cadangan.',
   close: 'Tutup',
 };
 

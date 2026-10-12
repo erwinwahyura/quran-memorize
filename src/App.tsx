@@ -8,6 +8,7 @@ import { syncAllOffline } from './lib/offline';
 import { usePlayer } from './lib/player';
 import { navigate, useRoute } from './lib/router';
 import { useSettings } from './lib/store';
+import { Guide } from './pages/Guide';
 import { Library } from './pages/Library';
 import { PassageEdit } from './pages/PassageEdit';
 import { PassagePage } from './pages/PassagePage';
@@ -24,6 +25,7 @@ function Page({ route }: { route: string }) {
   if ((m = route.match(/^\/quran\/(\d{1,3})$/)) && +m[1] >= 1 && +m[1] <= 114)
     return <SurahRead key={m[1]} surah={+m[1]} />;
   if (route === '/settings') return <Settings />;
+  if (route === '/guide') return <Guide />;
   return <Library />;
 }
 
