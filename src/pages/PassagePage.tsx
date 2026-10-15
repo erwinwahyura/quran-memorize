@@ -3,6 +3,7 @@ import { BackIcon, EditIcon, EyeOffIcon, LanguageIcon, PauseIcon, PlayIcon, Tras
 import { OfflineButton } from '../components/OfflineButton';
 import { Reader } from '../components/Reader';
 import { relativeDay, useT } from '../lib/i18n';
+import { track } from '../lib/analytics';
 import { forgetOffline } from '../lib/offline';
 import { currentItem, passageQueue, player, usePlayer } from '../lib/player';
 import { back, navigate } from '../lib/router';
@@ -68,7 +69,13 @@ export function PassagePage({ id }: { id: string }) {
         >
           <LanguageIcon size={14} /> {t.translation}
         </button>
-        <button className={`chip${hide ? ' on' : ''}`} onClick={() => setHide((h) => !h)}>
+        <button
+          className={`chip${hide ? ' on' : ''}`}
+          onClick={() => {
+            if (!hide) track('test');
+            setHide((h) => !h);
+          }}
+        >
           <EyeOffIcon size={14} /> {t.hideText}
         </button>
       </div>

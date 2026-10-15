@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BackIcon } from '../components/Icons';
 import { SurahPicker } from '../components/SurahPicker';
 import { useT } from '../lib/i18n';
+import { track } from '../lib/analytics';
 import { afterPassageSaved } from '../lib/offline';
 import { back, navigate } from '../lib/router';
 import { addPassage, updatePassage, usePassages } from '../lib/store';
@@ -37,6 +38,7 @@ export function PassageEdit({ id }: { id?: string }) {
       navigate(`/p/${existing.id}`);
     } else {
       const p = addPassage(data);
+      track('add', { via: 'form' });
       navigate(`/p/${p.id}`);
     }
   };

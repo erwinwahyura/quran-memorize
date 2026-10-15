@@ -515,6 +515,9 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l);
 };
 export const usePlayer = () => useSyncExternalStore(subscribe, () => state);
+/** Non-React access (analytics). */
+export const subscribePlayer = subscribe;
+export const getPlayerState = () => state;
 export const currentItem = (s: PlayerState): QueueItem | undefined => s.queue[s.index];
 
 export function passageQueue(p: { id: string; surah: number; from: number; to: number }): QueueItem[] {

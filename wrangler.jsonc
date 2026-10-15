@@ -1,4 +1,4 @@
-// Cloudflare Workers (static assets + tiny audio proxy).
+// Cloudflare Workers (static assets + audio proxy + anonymous analytics).
 // Deploy: npm run deploy
 {
   "$schema": "node_modules/wrangler/config-schema.json",
@@ -9,6 +9,16 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/audio/*"]
-  }
+    "run_worker_first": ["/audio/*", "/api/*"]
+  },
+  // Usage analytics. Wrangler creates this database automatically on the first
+  // deploy; tables are created by the Worker on first use. Dashboard: /admin/
+  // Set the dashboard password: npm run admin:password, then
+  //   npx wrangler secret put ADMIN_PASSWORD_HASH
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "quran-memorize-analytics"
+    }
+  ]
 }

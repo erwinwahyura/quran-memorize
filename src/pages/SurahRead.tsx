@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BackIcon, LanguageIcon, PauseIcon, PlayIcon, PlusIcon, XIcon } from '../components/Icons';
 import { Reader } from '../components/Reader';
 import { useT } from '../lib/i18n';
+import { track } from '../lib/analytics';
 import { afterPassageSaved } from '../lib/offline';
 import { currentItem, player, usePlayer, type QueueItem } from '../lib/player';
 import { back, navigate } from '../lib/router';
@@ -95,6 +96,7 @@ export function SurahRead({ surah }: { surah: number }) {
             onClick={() => {
               const p = addPassage({ surah, from: sel[0], to: sel[1] });
               afterPassageSaved(p);
+              track('add', { via: 'quran' });
               setSelecting(false);
               setSel(null);
               navigate(`/p/${p.id}`);

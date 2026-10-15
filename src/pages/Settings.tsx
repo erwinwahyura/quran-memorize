@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { APP_VERSION } from '../components/ErrorBoundary';
+import { APP_VERSION } from '../lib/version';
 import { clearAudioCache, countCached, requestPersistence, storageEstimate } from '../lib/audioCache';
 import { markChanged, syncAllOffline } from '../lib/offline';
 import { UI_LANGS, useT } from '../lib/i18n';
@@ -256,6 +256,19 @@ export function Settings() {
         >
           {t.clearAudio}
         </button>
+      </section>
+
+      <section className="card">
+        <h2>{t.privacy}</h2>
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={settings.analytics}
+            onChange={(e) => updateSettings({ analytics: e.target.checked })}
+          />
+          <span>{t.analyticsToggle}</span>
+        </label>
+        <p className="muted small">{t.analyticsHint}</p>
       </section>
 
       <section className="card">

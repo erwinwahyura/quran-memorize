@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Hafalan Analytics</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f5f1;
+        --surface: #fcfcfb;
+        --line: #e4e2da;
+        --grid: #ecebe5;
+        --text: #0b0b0b;
+        --text-2: #52514e;
+        --muted: #7a7974;
+        --series-1: #2a78d6;
+        --series-1-soft: rgba(42, 120, 214, 0.14);
+        --danger: #c0392b;
+        --radius: 12px;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          color-scheme: dark;
+          --bg: #121211;
+          --surface: #1a1a19;
+          --line: #2c2c2a;
+          --grid: #262624;
+          --text: #f0efec;
+          --text-2: #c3c2b7;
+          --muted: #8e8d86;
+          --series-1: #3987e5;
+          --series-1-soft: rgba(57, 135, 229, 0.18);
+          --danger: #ef7b6f;
+        }
+      }
+      :root[data-theme='dark'] {
+        color-scheme: dark;
+        --bg: #121211;
+        --surface: #1a1a19;
+        --line: #2c2c2a;
+        --grid: #262624;
+        --text: #f0efec;
+        --text-2: #c3c2b7;
+        --muted: #8e8d86;
+        --series-1: #3987e5;
+        --series-1-soft: rgba(57, 135, 229, 0.18);
+        --danger: #ef7b6f;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); }
+      main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; }
+      h1 { font-size: 1.35rem; margin: 0; }
+      h2 { font-size: 0.95rem; margin: 0 0 12px; color: var(--text); }
+      .muted { color: var(--muted); }
+      .small { font-size: 0.82rem; }
+      header.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+      .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      button, select, input { font: inherit; color: inherit; }
+      .btn, select {
+        background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
+        padding: 7px 14px; cursor: pointer; font-size: 0.88rem;
+      }
+      .btn.on { border-color: var(--series-1); color: var(--series-1); font-weight: 600; }
+      .btn.primary { background: var(--series-1); border-color: var(--series-1); color: #fff; }
+      .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+      .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 10px; }
+      .kpi .label { font-size: 0.8rem; color: var(--text-2); }
+      .kpi .value { font-size: 1.7rem; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+      .kpi .sub { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+      .note { font-size: 0.82rem; color: var(--muted); margin: 0 0 16px; }
+      .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px; margin-bottom: 10px; }
+      .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-bottom: 10px; }
+      .chart { position: relative; }
+      .chart svg { display: block; width: 100%; height: 200px; overflow: visible; }
+      .axis text { fill: var(--muted); font-size: 10px; }
+      .gridline { stroke: var(--grid); stroke-width: 1; }
+      .bar { fill: var(--series-1); pointer-events: none; }
+      .hit { fill: transparent; cursor: default; }
+      .hit:hover + .bar, .bar.hl { fill: var(--series-1); filter: brightness(1.15); }
+      .tip {
+        position: absolute; pointer-events: none; background: var(--text); color: var(--surface);
+        font-size: 0.78rem; padding: 6px 9px; border-radius: 8px; white-space: nowrap; transform: translate(-50%, -110%);
+        opacity: 0; transition: opacity 0.1s;
+      }
+      .rows { display: grid; gap: 6px; }
+      .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; font-size: 0.85rem; }
+      .row .k { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+      .row .n { color: var(--text-2); font-variant-numeric: tabular-nums; }
+      .row .track { grid-column: 1 / -1; height: 6px; background: var(--series-1-soft); border-radius: 4px; overflow: hidden; }
+      .row .fill { height: 100%; background: var(--series-1); border-radius: 0 4px 4px 0; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+      th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+      th { color: var(--text-2); font-weight: 600; }
+      td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+      details summary { cursor: pointer; color: var(--text-2); font-size: 0.82rem; margin-top: 8px; }
+      .err { color: var(--danger); word-break: break-word; }
+      .login { max-width: 420px; margin: 12vh auto; }
+      .login input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); margin: 10px 0; }
+      .empty { color: var(--muted); font-size: 0.85rem; }
+      .hidden { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section id="login" class="card login hidden">
+        <h1>Hafalan Analytics</h1>
+        <p class="muted small">Sign in with the dashboard password.</p>
+        <form id="loginForm">
+          <input id="username" type="text" autocomplete="username" value="admin" hidden />
+          <input id="password" type="password" autocomplete="current-password" placeholder="Password" required />
+          <button class="btn primary" type="submit" id="loginBtn">Sign in</button>
+        </form>
+        <p id="loginError" class="err small"></p>
+      </section>
+
+      <div id="dash" class="hidden">
+        <header class="top">
+          <div>
+            <h1>Hafalan Analytics</h1>
+            <div class="muted small" id="updated"></div>
+          </div>
+          <div class="controls">
+            <select id="range" aria-label="Date range">
+              <option value="7">Last 7 days</option>
+              <option value="30" selected>Last 30 days</option>
+              <option value="90">Last 90 days</option>
+              <option value="365">Last 12 months</option>
+            </select>
+            <button class="btn on" id="organic" aria-pressed="true" title="Exclude bots and your own devices">Organic only</button>
+            <button class="btn" id="mine"></button>
+            <button class="btn" id="refresh">Refresh</button>
+            <button class="btn" id="logout">Sign out</button>
+          </div>
+        </header>
+
+        <div class="kpis" id="kpis"></div>
+        <p class="note" id="excluded"></p>
+
+        <div class="grid2">
+          <section class="card">
+            <h2>Active devices per day</h2>
+            <div class="chart" id="chartActive"></div>
+          </section>
+          <section class="card">
+            <h2>Listening minutes per day</h2>
+            <div class="chart" id="chartListen"></div>
+          </section>
+        </div>
+        <section class="card" style="margin-bottom: 10px">
+          <h2>Daily table</h2>
+          <details>
+            <summary>Show table</summary>
+            <div id="dailyTable"></div>
+          </details>
+        </section>
+
+        <div class="grid3" id="breakdowns"></div>
+
+        <section class="card">
+          <h2>Recent errors</h2>
+          <div id="errors"></div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const fmt = new Intl.NumberFormat();
+      const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+      const store = {
+        get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+        set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+        del: (k) => { try { localStorage.removeItem(k); } catch {} },
+      };
+      let organic = true;
+      let last = null;
+      let resizeT;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeT);
+        resizeT = setTimeout(() => last && render(last), 150);
+      });
+
+      // "This is my device": the app (same origin) sends events flagged internal.
+      function renderMine() {
+        const mine = store.get('qm-internal') === '1';
+        $('mine').textContent = mine ? '✓ This device is excluded' : 'Exclude this device';
+        $('mine').classList.toggle('on', mine);
+        $('mine').title = 'Marks this browser as yours so its usage is excluded from organic numbers. Do it on each of your devices (phone: open quran.erwarx.com/?internal=1 in the app).';
+      }
+      $('mine').onclick = () => {
+        store.set('qm-internal', store.get('qm-internal') === '1' ? '0' : '1');
+        renderMine();
+      };
+
+      function showLogin(msg) {
+        $('dash').classList.add('hidden');
+        $('login').classList.remove('hidden');
+        $('loginError').textContent = msg || '';
+      }
+      $('loginForm').onsubmit = async (e) => {
+        e.preventDefault();
+        $('loginBtn').disabled = true;
+        $('loginError').textContent = '';
+        try {
+          const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: $('password').value }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) return showLogin(data.error || 'Sign-in failed (' + res.status + ')');
+          $('password').value = '';
+          load();
+        } catch (err) {
+          showLogin('Network error: ' + err.message);
+        } finally {
+          $('loginBtn').disabled = false;
+        }
+      };
+      $('logout').onclick = async () => {
+        await fetch('/api/logout', { method: 'POST' }).catch(() => {});
+        showLogin();
+      };
+      $('refresh').onclick = () => load();
+      $('range').onchange = () => load();
+      $('organic').onclick = () => {
+        organic = !organic;
+        $('organic').classList.toggle('on', organic);
+        $('organic').setAttribute('aria-pressed', String(organic));
+        $('organic').textContent = organic ? 'Organic only' : 'All traffic';
+        load();
+      };
+
+      async function load() {
+        const days = $('range').value;
+        const tz = -new Date().getTimezoneOffset();
+        let res;
+        try {
+          res = await fetch(`/api/stats?days=${days}&tz=${tz}${organic ? '' : '&all=1'}`, {
+            cache: 'no-store',
+          });
+        } catch (e) {
+          return showLogin('Network error: ' + e.message);
+        }
+        if (res.status === 401) return showLogin();
+        const data = await res.json().catch(() => ({ error: 'Bad response (' + res.status + ')' }));
+        if (!res.ok || data.error) return showLogin(data.error || 'Error ' + res.status);
+        $('login').classList.add('hidden');
+        $('dash').classList.remove('hidden');
+        last = data;
+        render(data);
+      }
+
+      function fillDays(daily, days) {
+        const byDay = Object.fromEntries(daily.map((d) => [d.day, d]));
+        const out = [];
+        const tzMs = -new Date().getTimezoneOffset() * 60000;
+        for (let i = days - 1; i >= 0; i--) {
+          const day = new Date(Date.now() + tzMs - i * 86400000).toISOString().slice(0, 10);
+          out.push(byDay[day] || { day, active: 0, sessions: 0, listenMinutes: 0, newDevices: 0 });
+        }
+        return out;
+      }
+
+      const kpi = (label, value, sub) =>
+        `<div class="card kpi"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ''}</div>`;
+
+      function render(d) {
+        const k = d.kpi;
+        const days = d.days;
+        $('updated').textContent = `Updated ${new Date(d.generatedAt).toLocaleString()} · ${d.organic ? 'organic traffic' : 'all traffic'}`;
+        const lm = k.listenMinutes;
+        const hours = lm >= 120 ? `${(lm / 60).toFixed(1)} h` : lm >= 10 ? `${Math.round(lm)} min` : `${lm.toFixed(1)} min`;
+        const installedPct = k.totalDevices ? Math.round((k.installed / k.totalDevices) * 100) : 0;
+        $('kpis').innerHTML = [
+          kpi('Active devices', fmt.format(k.activeDevices), `last ${days} days`),
+          kpi('Active (7 days)', fmt.format(k.active7), 'weekly active'),
+          kpi('New devices', fmt.format(k.newDevices), `first seen in ${days} days`),
+          kpi('Listening time', hours, `${fmt.format(k.plays)} plays`),
+          kpi('Sessions', fmt.format(k.sessions), k.activeDevices ? `${(k.sessions / k.activeDevices).toFixed(1)} per device` : ''),
+          kpi('Installed app', `${installedPct}%`, `${fmt.format(k.installed)} of ${fmt.format(k.totalDevices)} devices`),
+        ].join('');
+        $('excluded').textContent = d.organic
+          ? `Excluded from these numbers: ${fmt.format(k.excludedBots)} bot device(s) and ${fmt.format(k.excludedInternal)} of your own device(s). Visitors that never run the app's JavaScript (crawlers) are never counted.`
+          : 'Showing all traffic, including bots and your own devices.';
+
+        const series = fillDays(d.daily, Math.min(days, 90));
+        barChart($('chartActive'), series, 'active', (v) => `${fmt.format(v)} device${v === 1 ? '' : 's'}`);
+        barChart($('chartListen'), series, 'listenMinutes', (v) => `${fmt.format(v)} min`);
+
+        $('dailyTable').innerHTML = `<table><thead><tr><th>Day</th><th class="num">Active</th><th class="num">New</th><th class="num">Sessions</th><th class="num">Listening (min)</th></tr></thead><tbody>${series
+          .slice()
+          .reverse()
+          .map((r) => `<tr><td>${esc(r.day)}</td><td class="num">${r.active}</td><td class="num">${r.newDevices}</td><td class="num">${r.sessions}</td><td class="num">${r.listenMinutes}</td></tr>`)
+          .join('')}</tbody></table>`;
+
+        const b = d.breakdowns;
+        const labels = {
+          standalone: 'Installed vs browser', countries: 'Countries', cities: 'Cities', deviceTypes: 'Device type',
+          os: 'Operating system', browsers: 'Browser', uiLang: 'App language', reciters: 'Reciter (at app open)',
+          playSources: 'What people play', pages: 'Pages viewed', versions: 'App version',
+        };
+        const nice = { id: 'Bahasa Indonesia', en: 'English', passage: 'A passage', surah: 'Whole surah', all: 'Play all', review: 'Play review' };
+        $('breakdowns').innerHTML = Object.entries(labels)
+          .map(([key, title]) => {
+            const rows = b[key] || [];
+            const max = Math.max(1, ...rows.map((r) => r.n));
+            const body = rows.length
+              ? rows
+                  .map((r) => {
+                    let label = r.k == null || r.k === '' ? 'Unknown' : String(r.k);
+                    if (key === 'reciters') label = label.replace(/_\d+kbps$/, '').replace(/_/g, ' ');
+                    label = nice[label] || label;
+                    return `<div class="row"><span class="k" title="${esc(label)}">${esc(label)}</span><span class="n">${fmt.format(r.n)}</span><div class="track"><div class="fill" style="width:${(r.n / max) * 100}%"></div></div></div>`;
+                  })
+                  .join('')
+              : '<div class="empty">No data yet</div>';
+            return `<section class="card"><h2>${esc(title)}</h2><div class="rows">${body}</div></section>`;
+          })
+          .join('');
+
+        $('errors').innerHTML = d.errors.length
+          ? `<table><thead><tr><th>When</th><th>Error</th><th>Device</th><th>Version</th></tr></thead><tbody>${d.errors
+              .map((e) => `<tr><td>${esc(new Date(e.ts).toLocaleString())}</td><td class="err">${esc(e.msg)}</td><td>${esc(e.os)} · ${esc(e.browser)}</td><td>${esc(e.app_version)}</td></tr>`)
+              .join('')}</tbody></table>`
+          : '<div class="empty">No errors 🎉</div>';
+      }
+
+      // Single-series column chart with a hover tooltip (one hue, no legend needed).
+      function barChart(el, data, key, label) {
+        const W = Math.max(280, Math.round(el.clientWidth || 600)), H = 200, padL = 34, padB = 22, padT = 8;
+        const max = Math.max(1, ...data.map((d) => d[key]));
+        const nice = niceMax(max);
+        const band = (W - padL) / data.length;
+        const bw = Math.min(24, Math.max(2, band - 2));
+        const y = (v) => padT + (H - padT - padB) * (1 - v / nice);
+        const ticks = [0, nice / 2, nice];
+        const every = Math.ceil(data.length / 6);
+        let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(key)} per day">`;
+        svg += '<g class="axis">';
+        for (const t of ticks) {
+          svg += `<line class="gridline" x1="${padL}" x2="${W}" y1="${y(t)}" y2="${y(t)}"/><text x="${padL - 6}" y="${y(t) + 3}" text-anchor="end">${fmt.format(Math.round(t * 10) / 10)}</text>`;
+        }
+        data.forEach((d, i) => {
+          if (i % every === 0 || i === data.length - 1) {
+            svg += `<text x="${padL + band * i + band / 2}" y="${H - 6}" text-anchor="middle">${d.day.slice(5)}</text>`;
+          }
+        });
+        svg += '</g>';
+        data.forEach((d, i) => {
+          const v = d[key];
+          const x = padL + band * i + (band - bw) / 2;
+          const h = Math.max(0, H - padB - y(v));
+          const r = Math.min(4, bw / 2, h);
+          // 4px rounded data-end, square at the baseline.
+          const path = h > 0
+            ? `M${x},${H - padB} V${H - padB - h + r} Q${x},${H - padB - h} ${x + r},${H - padB - h} H${x + bw - r} Q${x + bw},${H - padB - h} ${x + bw},${H - padB - h + r} V${H - padB} Z`
+            : '';
+          svg += `<rect class="hit" data-i="${i}" x="${padL + band * i}" y="${padT}" width="${band}" height="${H - padT - padB}"/>`;
+          if (path) svg += `<path class="bar" data-i="${i}" d="${path}"/>`;
+        });
+        svg += '</svg>';
+        el.innerHTML = svg + '<div class="tip"></div>';
+        const tip = el.querySelector('.tip');
+        const svgEl = el.querySelector('svg');
+        const show = (i, evt) => {
+          const d = data[i];
+          const rect = svgEl.getBoundingClientRect();
+          const host = el.getBoundingClientRect();
+          tip.innerHTML = `<strong>${esc(d.day)}</strong><br>${esc(label(d[key]))}`;
+          const cx = ((padL + band * i + band / 2) / W) * rect.width + (rect.left - host.left);
+          const cy = (y(d[key]) / H) * rect.height + (rect.top - host.top);
+          tip.style.left = `${cx}px`;
+          tip.style.top = `${cy}px`;
+          tip.style.opacity = '1';
+          el.querySelectorAll('.bar').forEach((b) => b.classList.toggle('hl', b.dataset.i === String(i)));
+        };
+        el.querySelectorAll('.hit').forEach((h) => {
+          h.addEventListener('mouseenter', (e) => show(+h.dataset.i, e));
+          h.addEventListener('touchstart', (e) => show(+h.dataset.i, e), { passive: true });
+        });
+        el.addEventListener('mouseleave', () => {
+          tip.style.opacity = '0';
+          el.querySelectorAll('.bar').forEach((b) => b.classList.remove('hl'));
+        });
+      }
+      function niceMax(v) {
+        const p = Math.pow(10, Math.floor(Math.log10(v)));
+        const m = v / p;
+        return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
+      }
+
+      renderMine();
+      load();
+    </script>
+  </body>
+</html>
