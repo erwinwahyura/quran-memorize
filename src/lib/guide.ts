@@ -116,11 +116,12 @@ const en: GuideSection[] = [
     id: 'backup',
     icon: '💾',
     title: 'Backup and new phone',
-    intro: 'Your hafalan is stored only on this device. Nothing is uploaded.',
+    intro: 'Your hafalan list is stored only on this device; it is never uploaded.',
     steps: [
       'Settings → **Backup** → **Export backup** saves a small file. Keep it in Files, Drive or chat it to yourself.',
       'On a new phone, install Hafalan, then **Import backup** and pick that file.',
       'Make an export now and then, so you never lose your list.',
+      'Hafalan sends **anonymous usage stats** (how often it is used, device type, country) to improve the app. Turn it off anytime in Settings → **Privacy**.',
     ],
   },
   {
@@ -240,11 +241,12 @@ const id: GuideSection[] = [
     id: 'backup',
     icon: '💾',
     title: 'Cadangan dan HP baru',
-    intro: 'Hafalanmu hanya tersimpan di perangkat ini. Tidak ada yang diunggah.',
+    intro: 'Daftar hafalanmu hanya tersimpan di perangkat ini dan tidak pernah diunggah.',
     steps: [
       'Pengaturan → **Cadangan** → **Ekspor cadangan** menyimpan file kecil. Simpan di Files, Drive, atau kirim ke chat sendiri.',
       'Di HP baru, pasang Hafalan, lalu **Impor cadangan** dan pilih file tersebut.',
       'Ekspor sesekali agar daftar hafalanmu tidak hilang.',
+      'Hafalan mengirim **statistik penggunaan anonim** (seberapa sering dipakai, jenis perangkat, negara) untuk pengembangan aplikasi. Bisa dimatikan kapan saja di Pengaturan → **Privasi**.',
     ],
   },
   {

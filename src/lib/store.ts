@@ -17,6 +17,7 @@ export interface Settings {
   gap: number; // seconds of silence after each ayah; -1 = same length as the ayah
   autoDownload: boolean; // keep audio offline after it's played once
   saveOnAdd: boolean; // download a passage for offline as soon as it's added
+  analytics: boolean; // share anonymous usage stats
 }
 
 export interface Passage {
@@ -50,6 +51,7 @@ const DEFAULT_SETTINGS: Settings = {
   gap: 0,
   autoDownload: true,
   saveOnAdd: true,
+  analytics: true,
 };
 
 const LS_KEY = 'qm-state-v1';

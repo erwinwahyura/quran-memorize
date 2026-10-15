@@ -45,8 +45,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2}'],
+        globIgnores: ['admin/**'],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/audio\//],
+        navigateFallbackDenylist: [/^\/audio\//, /^\/api\//, /^\/admin/],
         runtimeCaching: [
           {
             // Quran text + translation list. App also keeps its own copy in IndexedDB.

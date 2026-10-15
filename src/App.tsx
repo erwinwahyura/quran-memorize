@@ -3,6 +3,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { BookIcon, HeadphonesIcon, SettingsIcon } from './components/Icons';
 import { PlayerBar } from './components/PlayerBar';
+import { startAnalytics, trackPage } from './lib/analytics';
 import { useT } from './lib/i18n';
 import { syncAllOffline } from './lib/offline';
 import { usePlayer } from './lib/player';
@@ -46,7 +47,11 @@ export function App() {
   // would treat a returned value as this effect's cleanup function.
   useEffect(() => {
     window.scrollTo(0, 0);
+    trackPage(route);
   }, [route]);
+  useEffect(() => {
+    startAnalytics();
+  }, []);
 
   // Keep the whole hafalan downloaded: on start, when back online, and after
   // switching reciter or translations.

@@ -1,7 +1,9 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
-declare const __APP_VERSION__: string;
-export const APP_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev';
+import { track } from '../lib/analytics';
+import { APP_VERSION } from '../lib/version';
+
+export { APP_VERSION };
 
 // Recent errors from anywhere (incl. outside React), shown in the fallback so
 // a blank screen can be reported with a concrete message.
@@ -36,6 +38,7 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('App crashed:', error, info.componentStack);
     remember(error.message);
+    track('error', { m: String(error.message).slice(0, 200) });
     this.setState({
       stack: (info.componentStack ?? '').trim().split('\n').slice(0, 6).join('\n'),
       recovering: this.props.onCrash?.() ?? false,

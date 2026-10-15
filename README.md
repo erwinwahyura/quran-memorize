@@ -30,6 +30,32 @@ Data sources: text and translations from [api.alquran.cloud](https://alquran.clo
 [everyayah.com](https://everyayah.com), proxied through `/audio/*` by a tiny Cloudflare Worker
 (adds CORS + edge caching so audio can be stored offline).
 
+## Usage analytics (private dashboard)
+
+Hafalan has a small, **self-hosted, anonymous** analytics system. No third-party trackers are used. Data goes from the app to your own Worker (`/api/e`) and is stored in a Cloudflare **D1** database in your account.
+
+- **What is collected:** a random device id, session id, page views (without ids), "added a passage", "started playing", listening seconds, Test-me use, installs and error messages. Each device also reports its country/city (from Cloudflare), OS/browser/device type, whether the app is installed, UI language and app version.
+- **What is never collected:** IP addresses, the hafalan list, notes or anything typed.
+- **Who is not tracked:** users can turn tracking off in **Settings → Privacy**. Browsers sending Global Privacy Control and automated browsers are skipped.
+- **Organic numbers:** bots are flagged by User-Agent. Your own devices can be excluded: click **Exclude this device** on the dashboard, or open the app once with `/?internal=1` (undo with `/?internal=0`).
+
+**Setup (once):**
+
+```bash
+npm run admin:hash                         # choose a dashboard password → prints a bcrypt hash
+npx wrangler secret put ADMIN_PASSWORD_HASH # paste the hash
+npm run deploy                             # creates the D1 database automatically on first deploy
+```
+
+Then open **https://quran.erwarx.com/admin/** and sign in.
+
+- Tables are created automatically on first use.
+- Wrong passwords are rate-limited (5 per 15 minutes per IP).
+- Sessions last 7 days. Changing the password signs every session out.
+- bcrypt is CPU-heavy: one check takes about 100 ms at cost 10. The Workers **Free** plan allows 10 ms CPU per request, so sign-in may fail there. On the Paid plan it works. Only `/api/login` runs bcrypt; normal app traffic does not.
+- If the automatic D1 creation fails, run `npx wrangler d1 create quran-memorize-analytics` and add the printed `database_id` to `wrangler.jsonc`.
+- Analytics endpoints run only on the Workers deployment, not on Pages.
+
 ## Develop
 
 ```bash
