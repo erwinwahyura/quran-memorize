@@ -53,10 +53,31 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+/** The stored hash, tolerating whitespace and surrounding quotes from copy/paste. */
+function normalizedHash(env: AuthEnv): string {
+  return (env.ADMIN_PASSWORD_HASH ?? '').trim().replace(/^(['"`])(.*)\1$/s, '$2').trim();
+}
+
 function configured(env: AuthEnv): string | null {
-  const h = env.ADMIN_PASSWORD_HASH?.trim();
-  const m = h ? HASH_RE.exec(h) : null;
-  return m && Number(m[1]) <= MAX_ITERATIONS ? h! : null;
+  const h = normalizedHash(env);
+  const m = HASH_RE.exec(h);
+  return m && Number(m[1]) <= MAX_ITERATIONS ? h : null;
+}
+
+/** Explains why the secret isn't usable, without revealing it. */
+function setupProblem(env: AuthEnv): string {
+  const raw = env.ADMIN_PASSWORD_HASH;
+  if (raw == null || raw === '') {
+    return 'ADMIN_PASSWORD_HASH is not set on this Worker. Add it in Cloudflare → Workers & Pages → quran-memorize → Settings → Variables and Secrets (type: Secret), or run `npx wrangler secret put ADMIN_PASSWORD_HASH`, then redeploy.';
+  }
+  const h = normalizedHash(env);
+  const parts = h.split('$');
+  const hints: string[] = [`it is ${h.length} characters long (expected about 90)`];
+  if (!h.startsWith('pbkdf2_sha256$')) hints.push(`it starts with "${h.slice(0, 6)}…" instead of "pbkdf2_sha256$"`);
+  if (parts.length !== 4) hints.push(`it has ${parts.length - 1} "$" separators (expected 3) — a shell may have expanded the $ signs`);
+  if (/\s/.test(h)) hints.push('it contains spaces or line breaks');
+  if (parts[1] && Number(parts[1]) > MAX_ITERATIONS) hints.push(`iterations ${parts[1]} exceed the Workers limit of ${MAX_ITERATIONS}`);
+  return `ADMIN_PASSWORD_HASH is set but not valid: ${hints.join('; ')}. Paste the hash line from \`npm run admin:password\` exactly (it begins with pbkdf2_sha256$), without quotes.`;
 }
 
 const fromB64url = (s: string) =>
@@ -97,7 +118,7 @@ export async function handleLogin(request: Request, env: AuthEnv): Promise<Respo
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
   const hash = configured(env);
   if (!hash) {
-    return json({ error: 'Admin password is not set up. Run `npm run admin:password`, then `npx wrangler secret put ADMIN_PASSWORD_HASH`.' }, 503);
+    return json({ error: setupProblem(env) }, 503);
   }
   let password = '';
   try {
