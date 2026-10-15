@@ -1,13 +1,15 @@
 // Admin login for the analytics dashboard.
 //
-// - The password is checked against a bcrypt hash stored in the
-//   ADMIN_PASSWORD_HASH secret (generate it with `npm run admin:hash`).
+// - The password is checked against a PBKDF2-SHA256 hash stored in the
+//   ADMIN_PASSWORD_HASH secret (generate it with `npm run admin:password`).
+//   PBKDF2 runs natively in Workers (WebCrypto), so a check fits the Free
+//   plan's 10 ms CPU limit; strength comes from a long random password plus
+//   rate limiting rather than from a slow hash.
 // - On success the browser gets a signed, HttpOnly session cookie (7 days).
 //   Sessions are signed with a key derived from the hash, so changing the
 //   password logs every session out.
 // - Failed attempts are rate-limited per (hashed) IP using D1.
 
-import bcrypt from 'bcryptjs';
 import { ensureSchema, type AnalyticsEnv } from './analytics';
 
 export interface AuthEnv extends AnalyticsEnv {
@@ -18,7 +20,9 @@ const COOKIE = 'qm_admin';
 const SESSION_DAYS = 7;
 const MAX_FAILS = 5;
 const FAIL_WINDOW_MS = 15 * 60_000;
-const BCRYPT_RE = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
+// Format: pbkdf2_sha256$<iterations>$<salt base64url>$<hash base64url>
+const HASH_RE = /^pbkdf2_sha256\$(\d{3,6})\$([A-Za-z0-9_-]{16,})\$([A-Za-z0-9_-]{43})$/;
+const MAX_ITERATIONS = 100_000; // Workers' PBKDF2 limit
 
 const json = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(data), {
@@ -51,7 +55,22 @@ function timingSafeEqual(a: string, b: string): boolean {
 
 function configured(env: AuthEnv): string | null {
   const h = env.ADMIN_PASSWORD_HASH?.trim();
-  return h && BCRYPT_RE.test(h) ? h : null;
+  const m = h ? HASH_RE.exec(h) : null;
+  return m && Number(m[1]) <= MAX_ITERATIONS ? h! : null;
+}
+
+const fromB64url = (s: string) =>
+  Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+
+async function verifyPassword(password: string, stored: string): Promise<boolean> {
+  const [, iter, salt, expected] = HASH_RE.exec(stored)!;
+  const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: fromB64url(salt), iterations: Number(iter) },
+    key,
+    256,
+  );
+  return timingSafeEqual(b64url(bits), expected);
 }
 
 function readCookie(request: Request, name: string): string | null {
@@ -78,7 +97,7 @@ export async function handleLogin(request: Request, env: AuthEnv): Promise<Respo
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
   const hash = configured(env);
   if (!hash) {
-    return json({ error: 'Admin password is not set up. Run `npm run admin:hash`, then `npx wrangler secret put ADMIN_PASSWORD_HASH`.' }, 503);
+    return json({ error: 'Admin password is not set up. Run `npm run admin:password`, then `npx wrangler secret put ADMIN_PASSWORD_HASH`.' }, 503);
   }
   let password = '';
   try {
@@ -90,7 +109,7 @@ export async function handleLogin(request: Request, env: AuthEnv): Promise<Respo
 
   // Rate limit by a hash of the client IP (the raw IP is never stored).
   const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
-  const ipKey = await sha256(`${hash.slice(0, 29)}|${ip}`);
+  const ipKey = await sha256(`${hash.split('$')[2]}|${ip}`);
   const db = env.DB;
   if (db) {
     await ensureSchema(db);
@@ -104,7 +123,7 @@ export async function handleLogin(request: Request, env: AuthEnv): Promise<Respo
     }
   }
 
-  const ok = await bcrypt.compare(password, hash);
+  const ok = await verifyPassword(password, hash);
   if (!ok) {
     if (db) {
       await db.batch([

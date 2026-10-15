@@ -13,7 +13,7 @@
   },
   // Usage analytics. Wrangler creates this database automatically on the first
   // deploy; tables are created by the Worker on first use. Dashboard: /admin/
-  // Set the dashboard password: npm run admin:hash, then
+  // Set the dashboard password: npm run admin:password, then
   //   npx wrangler secret put ADMIN_PASSWORD_HASH
   "d1_databases": [
     {

@@ -42,17 +42,16 @@ Hafalan has a small, **self-hosted, anonymous** analytics system. No third-party
 **Setup (once):**
 
 ```bash
-npm run admin:hash                         # choose a dashboard password → prints a bcrypt hash
+npm run admin:password                      # generates a strong password + its hash
 npx wrangler secret put ADMIN_PASSWORD_HASH # paste the hash
-npm run deploy                             # creates the D1 database automatically on first deploy
+npm run deploy                              # creates the D1 database automatically on first deploy
 ```
 
-Then open **https://quran.erwarx.com/admin/** and sign in.
+Then open **https://quran.erwarx.com/admin/** and sign in with the generated password. Prefer your own? Run `npm run admin:password -- --own` (16+ characters).
 
+- The password is stored only as a PBKDF2-SHA256 hash (10,000 iterations). This runs natively in Workers and fits the **Free** plan's 10 ms CPU limit. Security comes from the long random password plus rate limiting: 5 failed attempts per 15 minutes per IP (IPs are hashed, never stored).
+- Sessions use a signed HttpOnly cookie for 7 days. Changing the password signs every session out.
 - Tables are created automatically on first use.
-- Wrong passwords are rate-limited (5 per 15 minutes per IP).
-- Sessions last 7 days. Changing the password signs every session out.
-- bcrypt is CPU-heavy: one check takes about 100 ms at cost 10. The Workers **Free** plan allows 10 ms CPU per request, so sign-in may fail there. On the Paid plan it works. Only `/api/login` runs bcrypt; normal app traffic does not.
 - If the automatic D1 creation fails, run `npx wrangler d1 create quran-memorize-analytics` and add the printed `database_id` to `wrangler.jsonc`.
 - Analytics endpoints run only on the Workers deployment, not on Pages.
 
