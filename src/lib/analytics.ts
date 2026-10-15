@@ -128,6 +128,10 @@ export function flush() {
       ui: getState().settings.uiLang,
       lang: navigator.language,
       v: APP_VERSION.split(' ')[0],
+      screen: `${Math.round(screen.width)}x${Math.round(screen.height)}`,
+      dpr: window.devicePixelRatio || 1,
+      theme: window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+      ...hints,
     },
     events: queue.splice(0, queue.length),
   });
@@ -182,10 +186,31 @@ export function trackPage(route: string) {
   track('page', { p });
 }
 
+// Chromium hides the phone model and real OS version from the User-Agent;
+// it shares them through User-Agent Client Hints instead.
+let hints: { model?: string; osv?: string } = {};
+interface UAData {
+  getHighEntropyValues(h: string[]): Promise<{ model?: string; platformVersion?: string; platform?: string }>;
+}
+function loadHints() {
+  const uad = (navigator as Navigator & { userAgentData?: UAData }).userAgentData;
+  uad
+    ?.getHighEntropyValues(['model', 'platformVersion'])
+    .then((v) => {
+      hints = {
+        ...(v.model ? { model: v.model } : {}),
+        // Windows reports an internal number (13+ = Windows 11), so only keep it for Android/macOS.
+        ...(v.platformVersion && v.platform !== 'Windows' ? { osv: v.platformVersion.split('.').slice(0, 2).join('.') } : {}),
+      };
+    })
+    .catch(() => {});
+}
+
 let started = false;
 export function startAnalytics() {
   if (started) return;
   started = true;
+  if (enabled()) loadHints();
   // Owner tooling: open the app once with ?internal=1 (or ?internal=0 to undo).
   const flag = new URLSearchParams(location.search).get('internal');
   if (flag === '1' || flag === '0') ls.set('qm-internal', flag);

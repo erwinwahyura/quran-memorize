@@ -39,8 +39,32 @@ const SCHEMA = [
 ];
 
 let schemaReady: Promise<unknown> | null = null;
+// Columns added after the first release; existing databases get them via ALTER TABLE.
+const DEVICE_COLUMNS: Record<string, string> = {
+  model: 'TEXT',
+  os_version: 'TEXT',
+  browser_version: 'TEXT',
+  screen: 'TEXT',
+  dpr: 'REAL',
+  theme: 'TEXT',
+};
+
+async function migrate(db: D1Database) {
+  await db.batch(SCHEMA.map((q) => db.prepare(q)));
+  const cols = await db.prepare('PRAGMA table_info(devices)').all<{ name: string }>();
+  const have = new Set(cols.results.map((c) => c.name));
+  const missing = Object.entries(DEVICE_COLUMNS).filter(([c]) => !have.has(c));
+  for (const [c, type] of missing) {
+    try {
+      await db.prepare(`ALTER TABLE devices ADD COLUMN ${c} ${type}`).run();
+    } catch (e) {
+      if (!/duplicate column/i.test(String(e))) throw e; // another request added it first
+    }
+  }
+}
+
 export function ensureSchema(db: D1Database) {
-  schemaReady ??= db.batch(SCHEMA.map((q) => db.prepare(q))).catch((e) => {
+  schemaReady ??= migrate(db).catch((e) => {
     schemaReady = null;
     throw e;
   });
@@ -90,7 +114,34 @@ function parseUA(ua: string) {
     : /Mobi|iPhone|iPod|Android/.test(ua)
       ? 'mobile'
       : 'desktop';
-  return { os, browser, device_type };
+  const osVersion =
+    os === 'iOS'
+      ? (/OS (\d+)[_.](\d+)/.exec(ua)?.slice(1, 3).join('.') ?? null)
+      : os === 'Android'
+        ? (/Android (\d+(?:\.\d+)?)/.exec(ua)?.[1] ?? null)
+        : null; // desktop UAs freeze their OS version; Chromium sends the real one in meta
+  const browserVersion =
+    (browser === 'Edge'
+      ? /Edg\/(\d+)/
+      : browser === 'Samsung Internet'
+        ? /SamsungBrowser\/(\d+)/
+        : browser === 'Opera'
+          ? /OPR\/(\d+)/
+          : browser === 'Firefox'
+            ? /(?:Firefox|FxiOS)\/(\d+)/
+            : browser === 'Chrome'
+              ? /(?:CriOS|Chrome)\/(\d+)/
+              : /Version\/(\d+(?:\.\d+)?)/
+    ).exec(ua)?.[1] ?? null;
+  const androidModel = /Android [\d.]+; ([^;)]+?)(?: Build\/[^;)]*)?\)/.exec(ua)?.[1];
+  const model = /iPad/.test(ua)
+    ? 'iPad'
+    : /iPhone/.test(ua)
+      ? 'iPhone'
+      : androidModel && androidModel !== 'K' // 'K' = Chrome's reduced UA placeholder
+        ? androidModel
+        : null;
+  return { os, browser, device_type, osVersion, browserVersion, model };
 }
 
 const str = (v: unknown, max = 64) => (typeof v === 'string' ? v.slice(0, max) : null);
@@ -113,7 +164,17 @@ interface Batch {
   d: string;
   s: string;
   internal?: boolean;
-  meta?: { standalone?: boolean; ui?: string; lang?: string; v?: string };
+  meta?: {
+    standalone?: boolean;
+    ui?: string;
+    lang?: string;
+    v?: string;
+    model?: string; // Chromium client hints (Android model)
+    osv?: string; // Chromium client hints (real OS version)
+    screen?: string; // e.g. "390x844"
+    dpr?: number;
+    theme?: string; // 'dark' | 'light'
+  };
   events: { n: string; t: number; v?: number; p?: Record<string, unknown> }[];
 }
 
@@ -135,7 +196,7 @@ export async function handleIngest(request: Request, env: AnalyticsEnv): Promise
   const now = Date.now();
   const ua = request.headers.get('User-Agent') ?? '';
   const cf = (request as Request & { cf?: Record<string, unknown> }).cf ?? {};
-  const { os, browser, device_type } = parseUA(ua);
+  const { os, browser, device_type, osVersion, browserVersion, model } = parseUA(ua);
   const isBot = BOT_RE.test(ua) || !ua ? 1 : 0;
   const m = b.meta ?? {};
 
@@ -157,12 +218,15 @@ export async function handleIngest(request: Request, env: AnalyticsEnv): Promise
     db
       .prepare(
         `INSERT INTO devices (id, first_seen, last_seen, country, region, city, timezone, os, browser, device_type,
-           standalone, lang, ui_lang, app_version, is_bot, is_internal)
-         VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+           standalone, lang, ui_lang, app_version, is_bot, is_internal,
+           model, os_version, browser_version, screen, dpr, theme)
+         VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
          ON CONFLICT(id) DO UPDATE SET
            last_seen = MAX(last_seen, ?2), country = ?3, region = ?4, city = ?5, timezone = ?6,
            os = ?7, browser = ?8, device_type = ?9, standalone = ?10, lang = ?11, ui_lang = ?12,
-           app_version = ?13, is_bot = MAX(is_bot, ?14), is_internal = ?15`,
+           app_version = ?13, is_bot = MAX(is_bot, ?14), is_internal = ?15,
+           model = COALESCE(?16, model), os_version = COALESCE(?17, os_version), browser_version = ?18,
+           screen = COALESCE(?19, screen), dpr = COALESCE(?20, dpr), theme = COALESCE(?21, theme)`,
       )
       .bind(
         b.d,
@@ -180,6 +244,12 @@ export async function handleIngest(request: Request, env: AnalyticsEnv): Promise
         str(m.v, 40),
         isBot,
         b.internal ? 1 : 0,
+        str(m.model, 40) || model,
+        str(m.osv, 16) || osVersion,
+        browserVersion,
+        typeof m.screen === 'string' && /^\d{2,5}x\d{2,5}$/.test(m.screen) ? m.screen : null,
+        typeof m.dpr === 'number' && isFinite(m.dpr) ? Math.round(m.dpr * 100) / 100 : null,
+        m.theme === 'dark' || m.theme === 'light' ? m.theme : null,
       ),
     ...events.map((e) =>
       db
@@ -192,6 +262,30 @@ export async function handleIngest(request: Request, env: AnalyticsEnv): Promise
 }
 
 // ---------------- stats (dashboard) ----------------
+
+interface DeviceRow {
+  id: string;
+  first_seen: number;
+  last_seen: number;
+  os: string | null;
+  os_version: string | null;
+  browser: string | null;
+  browser_version: string | null;
+  device_type: string | null;
+  model: string | null;
+  screen: string | null;
+  theme: string | null;
+  country: string | null;
+  city: string | null;
+  standalone: number | null;
+  ui_lang: string | null;
+  app_version: string | null;
+  is_bot: number;
+  is_internal: number;
+  days: number;
+  sessions: number;
+  listen: number;
+}
 
 /** Caller must have verified the admin session. */
 export async function handleStats(request: Request, env: AnalyticsEnv): Promise<Response> {
@@ -209,6 +303,7 @@ export async function handleStats(request: Request, env: AnalyticsEnv): Promise<
   const since7 = now - 7 * 86_400_000;
   const dev = organic ? 'd.is_bot = 0 AND d.is_internal = 0' : '1 = 1';
   const dayExpr = `date((e.ts / 1000) + ${tz * 60}, 'unixepoch')`;
+  const firstDayExpr = `date((d.first_seen / 1000) + ${tz * 60}, 'unixepoch')`;
 
   const q = <T>(sql: string, ...args: unknown[]) =>
     db
@@ -233,8 +328,9 @@ export async function handleStats(request: Request, env: AnalyticsEnv): Promise<
 
   const [daily, newDaily, kpi, kpi7, totals, excluded, countries, cities, os, browsers, deviceTypes, standalone, uiLang, versions, pages, playSources, reciters, errors] =
     await Promise.all([
-      q<{ day: string; active: number; sessions: number; listen: number | null }>(
+      q<{ day: string; active: number; back: number; sessions: number; listen: number | null }>(
         `SELECT ${dayExpr} AS day, COUNT(DISTINCT e.device_id) AS active, COUNT(DISTINCT e.session_id) AS sessions,
+           COUNT(DISTINCT CASE WHEN ${firstDayExpr} < ${dayExpr} THEN e.device_id END) AS back,
            SUM(CASE WHEN e.name = 'listen' THEN e.value END) AS listen
          FROM events e JOIN devices d ON d.id = e.device_id WHERE e.ts >= ? AND ${dev} GROUP BY day ORDER BY day`,
         since,
@@ -284,6 +380,37 @@ export async function handleStats(request: Request, env: AnalyticsEnv): Promise<
       ),
     ]);
 
+  const [returning, devices, models, osVersions, screens, themes] = await Promise.all([
+    // Returning = active this period AND (first seen before it, or active on 2+ different days in it).
+    one<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM (
+         SELECT e.device_id, MIN(d.first_seen) AS fs, COUNT(DISTINCT ${dayExpr}) AS days
+         FROM events e JOIN devices d ON d.id = e.device_id WHERE e.ts >= ? AND ${dev} GROUP BY e.device_id
+       ) WHERE fs < ? OR days >= 2`,
+      since,
+      since,
+    ),
+    q<DeviceRow>(
+      `SELECT d.id, d.first_seen, d.last_seen, d.os, d.os_version, d.browser, d.browser_version, d.device_type,
+         d.model, d.screen, d.theme, d.country, d.city, d.standalone, d.ui_lang, d.app_version, d.is_bot, d.is_internal,
+         COALESCE(a.days, 0) AS days, COALESCE(a.sessions, 0) AS sessions, COALESCE(a.listen, 0) AS listen
+       FROM devices d
+       LEFT JOIN (
+         SELECT e.device_id, COUNT(DISTINCT ${dayExpr}) AS days, COUNT(DISTINCT e.session_id) AS sessions,
+           SUM(CASE WHEN e.name = 'listen' THEN e.value END) AS listen
+         FROM events e WHERE e.ts >= ? GROUP BY e.device_id
+       ) a ON a.device_id = d.id
+       WHERE d.last_seen >= ? AND ${dev}
+       ORDER BY d.last_seen DESC LIMIT 200`,
+      since,
+      since,
+    ),
+    breakdown("COALESCE(d.model, CASE d.device_type WHEN 'desktop' THEN 'Computer' ELSE NULL END)"),
+    breakdown("d.os || COALESCE(' ' || d.os_version, '')"),
+    breakdown('d.screen'),
+    breakdown('d.theme'),
+  ]);
+
   return json({
     generatedAt: now,
     days,
@@ -297,6 +424,7 @@ export async function handleStats(request: Request, env: AnalyticsEnv): Promise<
       sessions: kpi?.sessions ?? 0,
       listenMinutes: Math.round(((kpi?.listen ?? 0) / 60) * 10) / 10,
       plays: kpi?.plays ?? 0,
+      returning: returning?.n ?? 0,
       excludedBots: excluded?.bots ?? 0,
       excludedInternal: excluded?.internal ?? 0,
     },
@@ -304,10 +432,34 @@ export async function handleStats(request: Request, env: AnalyticsEnv): Promise<
       day: r.day,
       active: r.active,
       sessions: r.sessions,
+      returning: r.back,
       listenMinutes: Math.round(((r.listen ?? 0) / 60) * 10) / 10,
       newDevices: newDaily.find((x) => x.day === r.day)?.n ?? 0,
     })),
-    breakdowns: { countries, cities, os, browsers, deviceTypes, standalone, uiLang, versions, pages, playSources, reciters },
+    breakdowns: {
+      countries, cities, os, osVersions, browsers, deviceTypes, models, screens, themes, standalone, uiLang, versions, pages, playSources, reciters,
+    },
+    devices: devices.map((r) => ({
+      // Short, stable label; the full random id isn't needed to tell devices apart.
+      id: r.id.slice(0, 8),
+      firstSeen: r.first_seen,
+      lastSeen: r.last_seen,
+      device: [r.model, r.os && `${r.os}${r.os_version ? ' ' + r.os_version : ''}`, r.browser && `${r.browser}${r.browser_version ? ' ' + r.browser_version : ''}`]
+        .filter(Boolean)
+        .join(' · '),
+      type: r.device_type,
+      screen: r.screen,
+      theme: r.theme,
+      location: [r.city, r.country].filter(Boolean).join(', '),
+      installed: !!r.standalone,
+      lang: r.ui_lang,
+      version: r.app_version,
+      days: r.days,
+      sessions: r.sessions,
+      listenMinutes: Math.round((r.listen / 60) * 10) / 10,
+      isNew: r.first_seen >= since,
+      flag: r.is_bot ? 'bot' : r.is_internal ? 'yours' : null,
+    })),
     errors,
   });
 }

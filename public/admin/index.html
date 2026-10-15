@@ -98,6 +98,11 @@
       td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
       details summary { cursor: pointer; color: var(--text-2); font-size: 0.82rem; margin-top: 8px; }
       .err { color: var(--danger); word-break: break-word; }
+      .table-wrap { overflow-x: auto; max-height: 520px; overflow-y: auto; }
+      .table-wrap table { min-width: 860px; }
+      .table-wrap thead th { position: sticky; top: 0; background: var(--surface); }
+      .pill { display: inline-block; font-size: 0.7rem; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--text-2); margin-left: 2px; }
+      code { font-size: 0.8rem; }
       .login { max-width: 420px; margin: 12vh auto; }
       .login input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); margin: 10px 0; }
       .empty { color: var(--muted); font-size: 0.85rem; }
@@ -159,6 +164,15 @@
         </section>
 
         <div class="grid3" id="breakdowns"></div>
+
+        <section class="card" style="margin-bottom: 10px">
+          <h2>Devices <span class="muted small" id="devCount"></span></h2>
+          <p class="muted small" style="margin: -6px 0 10px">
+            Each row is one anonymous device (a random id stored in the app). Same id again = same device came back.
+            Safari and the installed app on one iPhone count as two devices.
+          </p>
+          <div class="table-wrap" id="devices"></div>
+        </section>
 
         <section class="card">
           <h2>Recent errors</h2>
@@ -261,7 +275,7 @@
         const tzMs = -new Date().getTimezoneOffset() * 60000;
         for (let i = days - 1; i >= 0; i--) {
           const day = new Date(Date.now() + tzMs - i * 86400000).toISOString().slice(0, 10);
-          out.push(byDay[day] || { day, active: 0, sessions: 0, listenMinutes: 0, newDevices: 0 });
+          out.push(byDay[day] || { day, active: 0, returning: 0, sessions: 0, listenMinutes: 0, newDevices: 0 });
         }
         return out;
       }
@@ -280,6 +294,7 @@
           kpi('Active devices', fmt.format(k.activeDevices), `last ${days} days`),
           kpi('Active (7 days)', fmt.format(k.active7), 'weekly active'),
           kpi('New devices', fmt.format(k.newDevices), `first seen in ${days} days`),
+          kpi('Returning devices', fmt.format(k.returning ?? 0), k.activeDevices ? `${Math.round(((k.returning ?? 0) / k.activeDevices) * 100)}% of active came back` : 'came back on another day'),
           kpi('Listening time', hours, `${fmt.format(k.plays)} plays`),
           kpi('Sessions', fmt.format(k.sessions), k.activeDevices ? `${(k.sessions / k.activeDevices).toFixed(1)} per device` : ''),
           kpi('Installed app', `${installedPct}%`, `${fmt.format(k.installed)} of ${fmt.format(k.totalDevices)} devices`),
@@ -292,16 +307,17 @@
         barChart($('chartActive'), series, 'active', (v) => `${fmt.format(v)} device${v === 1 ? '' : 's'}`);
         barChart($('chartListen'), series, 'listenMinutes', (v) => `${fmt.format(v)} min`);
 
-        $('dailyTable').innerHTML = `<table><thead><tr><th>Day</th><th class="num">Active</th><th class="num">New</th><th class="num">Sessions</th><th class="num">Listening (min)</th></tr></thead><tbody>${series
+        $('dailyTable').innerHTML = `<table><thead><tr><th>Day</th><th class="num">Active</th><th class="num">New</th><th class="num">Returning</th><th class="num">Sessions</th><th class="num">Listening (min)</th></tr></thead><tbody>${series
           .slice()
           .reverse()
-          .map((r) => `<tr><td>${esc(r.day)}</td><td class="num">${r.active}</td><td class="num">${r.newDevices}</td><td class="num">${r.sessions}</td><td class="num">${r.listenMinutes}</td></tr>`)
+          .map((r) => `<tr><td>${esc(r.day)}</td><td class="num">${r.active}</td><td class="num">${r.newDevices}</td><td class="num">${r.returning ?? 0}</td><td class="num">${r.sessions}</td><td class="num">${r.listenMinutes}</td></tr>`)
           .join('')}</tbody></table>`;
 
         const b = d.breakdowns;
         const labels = {
           standalone: 'Installed vs browser', countries: 'Countries', cities: 'Cities', deviceTypes: 'Device type',
-          os: 'Operating system', browsers: 'Browser', uiLang: 'App language', reciters: 'Reciter (at app open)',
+          models: 'Device model', os: 'Operating system', osVersions: 'OS version', browsers: 'Browser',
+          screens: 'Screen size', themes: 'Light / dark mode', uiLang: 'App language', reciters: 'Reciter (at app open)',
           playSources: 'What people play', pages: 'Pages viewed', versions: 'App version',
         };
         const nice = { id: 'Bahasa Indonesia', en: 'English', passage: 'A passage', surah: 'Whole surah', all: 'Play all', review: 'Play review' };
@@ -322,6 +338,29 @@
             return `<section class="card"><h2>${esc(title)}</h2><div class="rows">${body}</div></section>`;
           })
           .join('');
+
+        const devs = d.devices || [];
+        $('devCount').textContent = devs.length ? `· ${devs.length} seen in this period` : '';
+        const ago = (ts) => {
+          const m = Math.round((Date.now() - ts) / 60000);
+          return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
+        };
+        const tag = (t) => `<span class="pill">${esc(t)}</span>`;
+        $('devices').innerHTML = devs.length
+          ? `<table><thead><tr><th>Device id</th><th>Device</th><th>Location</th><th>App</th><th>First seen</th><th>Last seen</th><th class="num">Days active</th><th class="num">Sessions</th><th class="num">Listening (min)</th></tr></thead><tbody>${devs
+              .map(
+                (v) => `<tr>
+                  <td><code>${esc(v.id)}</code> ${v.isNew ? tag(v.days >= 2 ? 'new · came back' : 'new') : tag('returning')} ${v.flag ? tag(v.flag) : ''}</td>
+                  <td>${esc(v.device || v.type || '?')}<div class="muted small">${esc([v.type, v.screen, v.theme].filter(Boolean).join(' · '))}</div></td>
+                  <td>${esc(v.location || '?')}</td>
+                  <td>${v.installed ? 'Installed' : 'Browser'}<div class="muted small">${esc([v.lang, v.version].filter(Boolean).join(' · '))}</div></td>
+                  <td title="${esc(new Date(v.firstSeen).toLocaleString())}">${esc(new Date(v.firstSeen).toLocaleDateString())}</td>
+                  <td title="${esc(new Date(v.lastSeen).toLocaleString())}">${esc(ago(v.lastSeen))}</td>
+                  <td class="num">${v.days}</td><td class="num">${v.sessions}</td><td class="num">${v.listenMinutes}</td>
+                </tr>`,
+              )
+              .join('')}</tbody></table>`
+          : '<div class="empty">No devices in this period</div>';
 
         $('errors').innerHTML = d.errors.length
           ? `<table><thead><tr><th>When</th><th>Error</th><th>Device</th><th>Version</th></tr></thead><tbody>${d.errors
