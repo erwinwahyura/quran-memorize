@@ -38,7 +38,25 @@ export function App() {
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
-  } = useRegisterSW();
+  } = useRegisterSW({
+    // Installed apps are usually resumed, not relaunched, so they would only
+    // look for a new version on a cold start. Check on resume and every 30 min.
+    onRegisteredSW(_url, registration) {
+      if (!registration) return;
+      const check = () => {
+        if (navigator.onLine) registration.update().catch(() => {});
+      };
+      setInterval(check, 30 * 60_000);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') check();
+      });
+    },
+  });
+
+  // Apply updates automatically, but never interrupt playback: wait until it stops.
+  useEffect(() => {
+    if (needRefresh && !ps.playing) void updateServiceWorker(true);
+  }, [needRefresh, ps.playing, updateServiceWorker]);
 
   useEffect(() => {
     document.documentElement.lang = uiLang;

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { APP_VERSION } from '../lib/version';
+import { checkForUpdate } from '../lib/update';
+import { getPlayerState } from '../lib/player';
 import { clearAudioCache, countCached, requestPersistence, storageEstimate } from '../lib/audioCache';
 import { markChanged, syncAllOffline } from '../lib/offline';
 import { UI_LANGS, useT } from '../lib/i18n';
@@ -23,6 +25,7 @@ export function Settings() {
   const passages = usePassages();
   const [offlineN, setOfflineN] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [persistTried, setPersistTried] = useState(false);
   useEffect(() => {
@@ -308,6 +311,28 @@ export function Settings() {
 
       <p className="muted small center">{t.about}</p>
       <p className="muted small center">Version {APP_VERSION}</p>
+      <div className="row-actions center-row">
+        <button
+          className="btn small"
+          disabled={checking}
+          onClick={async () => {
+            setChecking(true);
+            const r = await checkForUpdate();
+            setChecking(false);
+            setMsg(
+              r === 'found'
+                ? getPlayerState().playing
+                  ? t.updateWhenStopped
+                  : t.updateFound
+                : r === 'offline'
+                  ? t.offlineError
+                  : t.updateLatest,
+            );
+          }}
+        >
+          {checking ? t.checkingUpdates : t.checkUpdates}
+        </button>
+      </div>
     </div>
   );
 }
