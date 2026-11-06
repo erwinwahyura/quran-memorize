@@ -5,7 +5,14 @@ import { useT } from '../lib/i18n';
 import { track } from '../lib/analytics';
 import { afterPassageSaved } from '../lib/offline';
 import { back, navigate } from '../lib/router';
-import { addPassage, updatePassage, usePassages } from '../lib/store';
+import {
+  addPassage,
+  getState,
+  togglePlaylistPassage,
+  updatePassage,
+  usePassages,
+  usePlaylists,
+} from '../lib/store';
 import { getSurah } from '../lib/surahs';
 
 export function PassageEdit({ id }: { id?: string }) {
@@ -19,6 +26,22 @@ export function PassageEdit({ id }: { id?: string }) {
   const [to, setTo] = useState(String(existing?.to ?? ''));
   const [note, setNote] = useState(existing?.note ?? '');
   const [err, setErr] = useState<string | null>(null);
+  const playlists = usePlaylists();
+  // New passages go into the playlist being viewed in the library.
+  const [inLists, setInLists] = useState<Set<string>>(() => {
+    if (existing) return new Set(playlists.filter((pl) => pl.passageIds.includes(existing.id)).map((pl) => pl.id));
+    const active = getState().settings.activePlaylist;
+    return new Set(playlists.some((pl) => pl.id === active) ? [active] : []);
+  });
+  const toggleList = (id: string) =>
+    setInLists((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const savePlaylists = (passageId: string) =>
+    playlists.forEach((pl) => togglePlaylistPassage(pl.id, passageId, inLists.has(pl.id)));
 
   const s = surah ? getSurah(surah) : null;
 
@@ -35,9 +58,11 @@ export function PassageEdit({ id }: { id?: string }) {
     afterPassageSaved(data);
     if (existing) {
       updatePassage(existing.id, data);
+      savePlaylists(existing.id);
       navigate(`/p/${existing.id}`);
     } else {
       const p = addPassage(data);
+      savePlaylists(p.id);
       track('add', { via: 'form' });
       navigate(`/p/${p.id}`);
     }
@@ -120,6 +145,24 @@ export function PassageEdit({ id }: { id?: string }) {
                 onChange={(e) => setNote(e.target.value)}
               />
             </div>
+            {playlists.length > 0 && (
+              <div className="field">
+                <label>{t.playlists}</label>
+                <div className="chips">
+                  {playlists.map((pl) => (
+                    <button
+                      key={pl.id}
+                      type="button"
+                      aria-pressed={inLists.has(pl.id)}
+                      className={`chip${inLists.has(pl.id) ? ' on' : ''}`}
+                      onClick={() => toggleList(pl.id)}
+                    >
+                      {pl.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {err && <p className="error">{err}</p>}
             <div className="form-actions">
               <button type="button" className="btn" onClick={() => back()}>

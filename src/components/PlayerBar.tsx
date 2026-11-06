@@ -3,7 +3,7 @@ import { useT } from '../lib/i18n';
 import { currentItem, player, usePlayer } from '../lib/player';
 import { RECITERS } from '../lib/reciters';
 import { navigate } from '../lib/router';
-import { updateSettings, useSettings } from '../lib/store';
+import { getState, updateSettings, useSettings } from '../lib/store';
 import { getSurah } from '../lib/surahs';
 import { ChevronDownIcon, ChevronUpIcon, NextIcon, PauseIcon, PlayIcon, PrevIcon, RepeatIcon, XIcon } from './Icons';
 
@@ -24,6 +24,11 @@ export function PlayerBar() {
     if (!s.sourceKey) return;
     if (s.sourceKey.startsWith('p:')) navigate(`/p/${s.sourceKey.slice(2)}`);
     else if (s.sourceKey.startsWith('surah:')) navigate(`/quran/${s.sourceKey.slice(6)}`);
+    else if (s.sourceKey.startsWith('pl:')) {
+      const id = s.sourceKey.slice(3);
+      if (getState().playlists.some((pl) => pl.id === id)) updateSettings({ activePlaylist: id });
+      navigate('/');
+    }
     else if (it.passageId) navigate(`/p/${it.passageId}`);
   };
 

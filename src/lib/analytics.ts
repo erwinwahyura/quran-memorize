@@ -158,7 +158,7 @@ function tickListening() {
   if (st.queue !== lastQueue && st.queue.length && st.sourceKey) {
     lastQueue = st.queue;
     const k = st.sourceKey;
-    track('play', { src: k.startsWith('p:') ? 'passage' : k.startsWith('surah:') ? 'surah' : k });
+    track('play', { src: k.startsWith('p:') ? 'passage' : k.startsWith('surah:') ? 'surah' : k.startsWith('pl:') ? 'playlist' : k });
   }
   if (st.playing && lastTick) listenMs += Math.min(now - lastTick, 5_000);
   lastTick = st.playing ? now : 0;

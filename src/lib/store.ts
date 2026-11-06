@@ -18,6 +18,8 @@ export interface Settings {
   autoDownload: boolean; // keep audio offline after it's played once
   saveOnAdd: boolean; // download a passage for offline as soon as it's added
   analytics: boolean; // share anonymous usage stats
+  /** Playlist shown on the library page; '' = all hafalan. */
+  activePlaylist: string;
 }
 
 export interface Passage {
@@ -31,9 +33,17 @@ export interface Passage {
   playCount: number;
 }
 
+/** A named group of passages, e.g. "Juz 30" or "This week" — played together. */
+export interface Playlist {
+  id: string;
+  name: string;
+  passageIds: string[];
+}
+
 interface State {
   settings: Settings;
   passages: Passage[];
+  playlists: Playlist[];
 }
 
 const browserLang = (): UiLang => (navigator.language?.toLowerCase().startsWith('id') ? 'id' : 'en');
@@ -52,6 +62,7 @@ const DEFAULT_SETTINGS: Settings = {
   autoDownload: true,
   saveOnAdd: true,
   analytics: true,
+  activePlaylist: '',
 };
 
 const LS_KEY = 'qm-state-v1';
@@ -63,20 +74,35 @@ function isValidPassage(p: Partial<Passage> | null): p is Passage {
   return !!s && p.from >= 1 && p.from <= p.to && p.to <= s.ayahs;
 }
 
+// Drops malformed playlists and ids of passages that no longer exist.
+function cleanPlaylists(list: unknown, passages: Passage[]): Playlist[] {
+  if (!Array.isArray(list)) return [];
+  const ids = new Set(passages.map((p) => p.id));
+  return (list as Partial<Playlist>[])
+    .filter((pl) => pl && typeof pl.id === 'string' && typeof pl.name === 'string')
+    .map((pl) => ({
+      id: pl.id!,
+      name: pl.name!,
+      passageIds: Array.isArray(pl.passageIds) ? pl.passageIds.filter((id) => ids.has(id)) : [],
+    }));
+}
+
 function load(): State {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<State>;
+      const passages = Array.isArray(parsed.passages) ? parsed.passages.filter(isValidPassage) : [];
       return {
         settings: { ...DEFAULT_SETTINGS, ...(parsed.settings ?? {}) },
-        passages: Array.isArray(parsed.passages) ? parsed.passages.filter(isValidPassage) : [],
+        passages,
+        playlists: cleanPlaylists(parsed.playlists, passages),
       };
     }
   } catch {
     /* fall through */
   }
-  return { settings: DEFAULT_SETTINGS, passages: [] };
+  return { settings: DEFAULT_SETTINGS, passages: [], playlists: [] };
 }
 
 let state: State = load();
@@ -109,6 +135,7 @@ window.addEventListener('storage', (e) => {
 export const getState = () => state;
 export const useSettings = () => useSyncExternalStore(subscribe, () => state.settings);
 export const usePassages = () => useSyncExternalStore(subscribe, () => state.passages);
+export const usePlaylists = () => useSyncExternalStore(subscribe, () => state.playlists);
 
 export function updateSettings(patch: Partial<Settings>) {
   commit({ ...state, settings: { ...state.settings, ...patch } });
@@ -131,7 +158,42 @@ export function updatePassage(id: string, patch: Partial<Passage>) {
 }
 
 export function deletePassage(id: string) {
-  commit({ ...state, passages: state.passages.filter((p) => p.id !== id) });
+  commit({
+    ...state,
+    passages: state.passages.filter((p) => p.id !== id),
+    playlists: state.playlists.map((pl) => ({ ...pl, passageIds: pl.passageIds.filter((x) => x !== id) })),
+  });
+}
+
+// ---- playlists ----
+export function addPlaylist(name: string, passageIds: string[] = []): Playlist {
+  const pl: Playlist = { id: uid(), name, passageIds };
+  commit({ ...state, playlists: [...state.playlists, pl] });
+  return pl;
+}
+
+export function updatePlaylist(id: string, patch: Partial<Omit<Playlist, 'id'>>) {
+  commit({ ...state, playlists: state.playlists.map((pl) => (pl.id === id ? { ...pl, ...patch } : pl)) });
+}
+
+export function deletePlaylist(id: string) {
+  const settings = state.settings.activePlaylist === id ? { ...state.settings, activePlaylist: '' } : state.settings;
+  commit({ ...state, settings, playlists: state.playlists.filter((pl) => pl.id !== id) });
+}
+
+/** Adds or removes one passage from a playlist. */
+export function togglePlaylistPassage(playlistId: string, passageId: string, on: boolean) {
+  const pl = state.playlists.find((x) => x.id === playlistId);
+  if (!pl || pl.passageIds.includes(passageId) === on) return;
+  updatePlaylist(playlistId, {
+    passageIds: on ? [...pl.passageIds, passageId] : pl.passageIds.filter((x) => x !== passageId),
+  });
+}
+
+/** The playlist's passages, in library (mushaf) order. */
+export function playlistPassages(pl: Playlist, passages: Passage[]): Passage[] {
+  const ids = new Set(pl.passageIds);
+  return passages.filter((p) => ids.has(p.id));
 }
 
 export function markPlayed(id: string, completed: boolean) {
@@ -159,13 +221,45 @@ export function importData(json: string): number {
   const data = JSON.parse(json) as Partial<State>;
   if (!Array.isArray(data.passages)) throw new Error('Invalid backup file');
   const valid = data.passages.filter(isValidPassage);
-  const existing = new Set(state.passages.map((p) => `${p.surah}:${p.from}-${p.to}`));
-  const added = valid
-    .filter((p) => !existing.has(`${p.surah}:${p.from}-${p.to}`))
-    .map((p) => ({ ...p, id: p.id || uid(), playCount: p.playCount ?? 0, createdAt: p.createdAt ?? Date.now() }));
+  const rangeKey = (p: Passage) => `${p.surah}:${p.from}-${p.to}`;
+  const existing = new Map(state.passages.map((p) => [rangeKey(p), p.id]));
+  const taken = new Set(state.passages.map((p) => p.id));
+  // Backup passage id -> id on this device (an existing passage with the same range, or the imported one).
+  const idMap = new Map<string, string>();
+  const added: Passage[] = [];
+  for (const p of valid) {
+    const local = existing.get(rangeKey(p));
+    if (local) {
+      if (p.id) idMap.set(p.id, local);
+      continue;
+    }
+    const id = p.id && !taken.has(p.id) ? p.id : uid();
+    if (p.id) idMap.set(p.id, id);
+    taken.add(id);
+    existing.set(rangeKey(p), id);
+    added.push({ ...p, id, playCount: p.playCount ?? 0, createdAt: p.createdAt ?? Date.now() });
+  }
+
+  // Merge playlists by name.
+  const playlists = state.playlists.map((pl) => ({ ...pl, passageIds: [...pl.passageIds] }));
+  if (Array.isArray(data.playlists)) {
+    for (const raw of data.playlists as Partial<Playlist>[]) {
+      if (!raw || typeof raw.name !== 'string' || !raw.name.trim()) continue;
+      const ids = (Array.isArray(raw.passageIds) ? raw.passageIds : [])
+        .map((x) => idMap.get(x))
+        .filter((x): x is string => !!x);
+      const same = playlists.find((pl) => pl.name.trim().toLowerCase() === raw.name!.trim().toLowerCase());
+      if (same) same.passageIds = [...new Set([...same.passageIds, ...ids])];
+      else playlists.push({ id: uid(), name: raw.name.trim(), passageIds: [...new Set(ids)] });
+    }
+  }
+
+  // A backup's active playlist id means nothing on this device.
+  const { activePlaylist: _ignored, ...importedSettings } = data.settings ?? ({} as Partial<Settings>);
   commit({
-    settings: { ...state.settings, ...(data.settings ?? {}) },
+    settings: { ...state.settings, ...importedSettings },
     passages: sortPassages([...state.passages, ...added]),
+    playlists,
   });
   return added.length;
 }
