@@ -115,6 +115,19 @@ const en = {
   guideLink: 'How does it work?',
   guideCard: 'Step-by-step guide: installing, adding ayat, listening, offline and backup.',
   close: 'Close',
+  allHafalan: 'All',
+  newPlaylist: 'New playlist',
+  editPlaylist: 'Edit playlist',
+  playlists: 'Playlists',
+  playlistName: 'Playlist name',
+  playlistNamePlaceholder: 'e.g. Juz 30, This week, From Ustadz',
+  playlistPick: 'Passages in this playlist',
+  playlistEmpty: 'This playlist is empty. Tap Edit to choose passages.',
+  playlistHint: 'Group passages into playlists to play just those, e.g. what you are reviewing this week.',
+  deletePlaylist: 'Delete playlist',
+  confirmDeletePlaylist: 'Delete this playlist? The passages stay in your hafalan.',
+  selectAll: 'Select all',
+  selectNone: 'Clear',
 };
 
 type Dict = typeof en;
@@ -233,6 +246,19 @@ const id: Dict = {
   guideLink: 'Bagaimana cara kerjanya?',
   guideCard: 'Panduan langkah demi langkah: pasang aplikasi, tambah ayat, mendengarkan, offline, dan cadangan.',
   close: 'Tutup',
+  allHafalan: 'Semua',
+  newPlaylist: 'Playlist baru',
+  editPlaylist: 'Ubah playlist',
+  playlists: 'Playlist',
+  playlistName: 'Nama playlist',
+  playlistNamePlaceholder: 'mis. Juz 30, Pekan ini, Dari Ustadz',
+  playlistPick: 'Hafalan di playlist ini',
+  playlistEmpty: 'Playlist ini masih kosong. Ketuk Ubah untuk memilih hafalan.',
+  playlistHint: 'Kelompokkan hafalan ke playlist untuk memutar yang itu saja, mis. muraja\'ah pekan ini.',
+  deletePlaylist: 'Hapus playlist',
+  confirmDeletePlaylist: 'Hapus playlist ini? Hafalannya tetap ada.',
+  selectAll: 'Pilih semua',
+  selectNone: 'Kosongkan',
 };
 
 const dicts: Record<UiLang, Dict> = { en, id };

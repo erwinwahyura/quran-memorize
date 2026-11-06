@@ -73,11 +73,32 @@ h2 {
   margin-bottom: 4px;
 }
 
+/* App shell: the document itself never scrolls — .scroller does. A fixed
+   bottom bar over a scrolling document drifts on iOS (collapsing toolbar,
+   overscroll bounce); pinned inside a non-scrolling shell it can't. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
 .app {
-  min-height: 100dvh;
+  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.scroller {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 16px);
 }
-.app.with-player {
+.app.with-player .scroller {
   padding-bottom: calc(var(--tabbar-h) + var(--player-h) + env(safe-area-inset-bottom) + 16px);
 }
 main {
@@ -287,6 +308,79 @@ main {
   background: color-mix(in srgb, var(--warn) 15%, transparent);
   border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
   font-size: 0.9rem;
+}
+/* playlists */
+.playlist-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin: 12px -16px 0;
+  padding: 2px 16px;
+  scrollbar-width: none;
+}
+.playlist-bar::-webkit-scrollbar {
+  display: none;
+}
+.playlist-bar .chip {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.chip .count {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  font-weight: 400;
+}
+.chip.dashed {
+  border-style: dashed;
+  color: var(--muted);
+}
+.row-actions {
+  align-items: center;
+}
+.push-end {
+  margin-left: auto;
+}
+.push-start {
+  margin-right: auto;
+}
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pick-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.pick-list li + li {
+  border-top: 1px solid var(--line);
+}
+.pick-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--card);
+  cursor: pointer;
+}
+.pick-row.on {
+  background: var(--selected);
+}
+.pick-row input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+.pick-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 .passage-list {
   list-style: none;
@@ -649,7 +743,7 @@ input[type='range'] {
 
 /* bottom: player + tabbar */
 .bottom {
-  position: fixed;
+  position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
@@ -780,8 +874,7 @@ input[type='range'] {
   padding: 9px 12px;
 }
 .update-bar {
-  position: sticky;
-  top: 0;
+  flex-shrink: 0;
   z-index: 40;
   display: flex;
   align-items: center;
